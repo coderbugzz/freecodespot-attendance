@@ -1,0 +1,67 @@
+@page "/employees"
+@rendermode InteractiveServer
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject EmployeeApiClient EmployeeApi
+
+<PageTitle>Employees</PageTitle>
+
+<h1>Employees</h1>
+
+<p>The roster the attendance system tracks. This list is served by the attendance API.</p>
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        The employee roster could not be loaded. Check that the attendance API is running, then reload the page.
+    </div>
+}
+else if (employees is null)
+{
+    <p><em>Loading the roster...</em></p>
+}
+else if (employees.Count == 0)
+{
+    <p><em>No employees have been added yet.</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th scope="col">Id</th>
+                <th scope="col">Name</th>
+                <th scope="col">Department</th>
+                <th scope="col">Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var employee in employees)
+            {
+                <tr>
+                    <td>@employee.Id</td>
+                    <td>@employee.FullName</td>
+                    <td>@employee.Department</td>
+                    <td>@employee.Email</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<Employee>? employees;
+    private bool loadFailed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            employees = await EmployeeApi.GetEmployeesAsync();
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+        }
+    }
+}

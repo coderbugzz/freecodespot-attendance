@@ -1,0 +1,11 @@
+@FreeCodeSpot.Attendance.Api_HostAddress = https://localhost:7020
+
+GET {{FreeCodeSpot.Attendance.Api_HostAddress}}/api/employees
+Accept: application/json
+
+###
+
+GET {{FreeCodeSpot.Attendance.Api_HostAddress}}/api/employees/3
+Accept: application/json
+
+###
