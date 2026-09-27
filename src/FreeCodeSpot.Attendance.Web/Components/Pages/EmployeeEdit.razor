@@ -1,0 +1,78 @@
+@page "/employees/{Id:int}/edit"
+@rendermode InteractiveServer
+@using FreeCodeSpot.Attendance.Web.Components.Employees
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject EmployeeApiClient EmployeeApi
+@inject NavigationManager Navigation
+
+<PageTitle>Edit employee</PageTitle>
+
+<h1>Edit employee</h1>
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        The employee could not be loaded. Check that the attendance API is running, then reload the page.
+    </div>
+}
+else if (notFound)
+{
+    <div class="alert alert-warning" role="alert">
+        This employee does not exist. <a href="employees">Back to the roster</a>
+    </div>
+}
+else if (model is null)
+{
+    <p><em>Loading the employee...</em></p>
+}
+else
+{
+    <EmployeeForm Model="model" OnSave="SaveAsync" SubmitText="Save changes" />
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private EmployeeFormModel? model;
+    private bool notFound;
+    private bool loadFailed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Employee? employee;
+        try
+        {
+            employee = await EmployeeApi.GetEmployeeAsync(Id);
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+            return;
+        }
+
+        if (employee is null)
+        {
+            notFound = true;
+            return;
+        }
+
+        model = EmployeeFormModel.From(employee);
+    }
+
+    private async Task<IReadOnlyDictionary<string, string[]>> SaveAsync(EmployeeFormModel form)
+    {
+        var result = await EmployeeApi.UpdateAsync(Id, form);
+        if (result.NotFound)
+        {
+            notFound = true;
+        }
+        else if (result.Succeeded)
+        {
+            Navigation.NavigateTo("employees");
+        }
+
+        return result.Errors;
+    }
+}

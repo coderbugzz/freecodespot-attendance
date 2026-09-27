@@ -1,0 +1,28 @@
+@page "/employees/new"
+@rendermode InteractiveServer
+@using FreeCodeSpot.Attendance.Web.Components.Employees
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject EmployeeApiClient EmployeeApi
+@inject NavigationManager Navigation
+
+<PageTitle>Add employee</PageTitle>
+
+<h1>Add employee</h1>
+
+<EmployeeForm Model="model" OnSave="SaveAsync" SubmitText="Add employee" />
+
+@code {
+    private readonly EmployeeFormModel model = new();
+
+    private async Task<IReadOnlyDictionary<string, string[]>> SaveAsync(EmployeeFormModel form)
+    {
+        var result = await EmployeeApi.CreateAsync(form);
+        if (result.Succeeded)
+        {
+            Navigation.NavigateTo("employees");
+        }
+
+        return result.Errors;
+    }
+}

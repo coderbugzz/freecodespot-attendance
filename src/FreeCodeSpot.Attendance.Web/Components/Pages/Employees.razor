@@ -10,6 +10,23 @@
 
 <p>The roster the attendance system tracks. This list is served by the attendance API.</p>
 
+<div class="d-flex align-items-center gap-3 mb-3">
+    <a href="employees/new" class="btn btn-primary">Add employee</a>
+
+    <div class="form-check mb-0">
+        <input id="showInactive" type="checkbox" class="form-check-input"
+               checked="@showInactive" @onchange="ToggleInactiveAsync" />
+        <label for="showInactive" class="form-check-label">Show inactive employees</label>
+    </div>
+</div>
+
+@if (actionFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        The change could not be saved. Check that the attendance API is running, then try again.
+    </div>
+}
+
 @if (loadFailed)
 {
     <div class="alert alert-danger" role="alert">
@@ -26,23 +43,57 @@ else if (employees.Count == 0)
 }
 else
 {
-    <table class="table table-striped">
+    <table class="table table-striped align-middle">
         <thead>
             <tr>
                 <th scope="col">Id</th>
                 <th scope="col">Name</th>
                 <th scope="col">Department</th>
                 <th scope="col">Email</th>
+                <th scope="col">Status</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
             </tr>
         </thead>
         <tbody>
             @foreach (var employee in employees)
             {
-                <tr>
+                <tr class="@(employee.IsActive ? null : "text-body-secondary")">
                     <td>@employee.Id</td>
                     <td>@employee.FullName</td>
                     <td>@employee.Department</td>
                     <td>@employee.Email</td>
+                    <td>
+                        @if (employee.IsActive)
+                        {
+                            <span class="badge text-bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">Inactive</span>
+                        }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <div class="d-inline-flex align-items-center gap-1">
+                        @if (confirmingId == employee.Id)
+                        {
+                            <span class="me-1">Deactivate @employee.FullName?</span>
+                            <button class="btn btn-sm btn-danger" @onclick="() => DeactivateAsync(employee.Id)">Yes, deactivate</button>
+                            <button class="btn btn-sm btn-link" @onclick="() => confirmingId = null">Cancel</button>
+                        }
+                        else
+                        {
+                            <a href="employees/@employee.Id/edit" class="btn btn-sm btn-outline-primary">Edit</a>
+                            @if (employee.IsActive)
+                            {
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => confirmingId = employee.Id">Deactivate</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-success" @onclick="() => ActivateAsync(employee.Id)">Activate</button>
+                            }
+                        }
+                        </div>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -52,16 +103,52 @@ else
 @code {
     private IReadOnlyList<Employee>? employees;
     private bool loadFailed;
+    private bool actionFailed;
+    private bool showInactive;
+    private int? confirmingId;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
     {
         try
         {
-            employees = await EmployeeApi.GetEmployeesAsync();
+            employees = await EmployeeApi.GetEmployeesAsync(showInactive);
+            loadFailed = false;
         }
         catch (HttpRequestException)
         {
             loadFailed = true;
         }
+    }
+
+    private async Task ToggleInactiveAsync(ChangeEventArgs e)
+    {
+        showInactive = e.Value is true;
+        await LoadAsync();
+    }
+
+    private async Task DeactivateAsync(int id)
+    {
+        confirmingId = null;
+        await RunActionAsync(() => EmployeeApi.DeactivateAsync(id));
+    }
+
+    private Task ActivateAsync(int id) => RunActionAsync(() => EmployeeApi.ActivateAsync(id));
+
+    // A 404 here means someone else changed the roster; reloading shows the current state.
+    private async Task RunActionAsync(Func<Task<SaveResult>> action)
+    {
+        try
+        {
+            await action();
+            actionFailed = false;
+        }
+        catch (HttpRequestException)
+        {
+            actionFailed = true;
+        }
+
+        await LoadAsync();
     }
 }

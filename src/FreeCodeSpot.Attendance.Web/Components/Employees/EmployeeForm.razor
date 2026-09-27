@@ -1,0 +1,99 @@
+@using FreeCodeSpot.Attendance.Web.Models
+
+@*
+    The form used by both the Add and the Edit page. It checks the data
+    annotations first, then shows any errors the API sends back (a duplicate
+    email, for example) under the matching field.
+*@
+
+@if (saveFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        The employee could not be saved. Check that the attendance API is running, then try again.
+    </div>
+}
+
+<EditForm EditContext="editContext" OnValidSubmit="SubmitAsync">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label for="fullName" class="form-label">Name</label>
+        <InputText id="fullName" class="form-control" @bind-Value="Model.FullName" />
+        <ValidationMessage For="() => Model.FullName" />
+    </div>
+
+    <div class="mb-3">
+        <label for="department" class="form-label">Department</label>
+        <InputText id="department" class="form-control" @bind-Value="Model.Department" />
+        <ValidationMessage For="() => Model.Department" />
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="Model.Email" />
+        <ValidationMessage For="() => Model.Email" />
+    </div>
+
+    <button type="submit" class="btn btn-primary" disabled="@saving">@SubmitText</button>
+    <a href="employees" class="btn btn-link">Cancel</a>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired]
+    public EmployeeFormModel Model { get; set; } = default!;
+
+    /// <summary>
+    /// Saves the form. Returns the API's validation errors, or an empty
+    /// dictionary when the save worked.
+    /// </summary>
+    [Parameter, EditorRequired]
+    public Func<EmployeeFormModel, Task<IReadOnlyDictionary<string, string[]>>> OnSave { get; set; } = default!;
+
+    [Parameter]
+    public string SubmitText { get; set; } = "Save";
+
+    private EditContext editContext = default!;
+    private ValidationMessageStore serverErrors = default!;
+    private bool saving;
+    private bool saveFailed;
+
+    protected override void OnParametersSet()
+    {
+        if (editContext?.Model == Model)
+        {
+            return;
+        }
+
+        editContext = new EditContext(Model);
+        serverErrors = new ValidationMessageStore(editContext);
+
+        // A server error disappears as soon as the user edits that field.
+        editContext.OnFieldChanged += (_, e) => serverErrors.Clear(e.FieldIdentifier);
+    }
+
+    private async Task SubmitAsync()
+    {
+        saving = true;
+        saveFailed = false;
+        serverErrors.Clear();
+
+        try
+        {
+            var errors = await OnSave(Model);
+            foreach (var (field, messages) in errors)
+            {
+                serverErrors.Add(editContext.Field(field), messages);
+            }
+
+            editContext.NotifyValidationStateChanged();
+        }
+        catch (HttpRequestException)
+        {
+            saveFailed = true;
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

@@ -6,19 +6,19 @@ Each published article corresponds to an immutable Git tag `article-NNN`. Check 
 
 ## What is here
 
-An ASP.NET Core minimal API that serves an employee roster from SQL Server, and a Blazor Web App that displays it.
+An ASP.NET Core minimal API that manages an employee roster in SQL Server, and a Blazor Web App to add, edit, deactivate and reactivate employees. Employees are never deleted.
 
 ```
-src/FreeCodeSpot.Attendance.Domain           Employee record
-src/FreeCodeSpot.Attendance.Application      EmployeeService and IEmployeeRepository
+src/FreeCodeSpot.Attendance.Domain           Employee record (with IsActive)
+src/FreeCodeSpot.Attendance.Application      EmployeeService (the roster rules), IEmployeeRepository, EmployeeDetails, EmployeeResult
 src/FreeCodeSpot.Attendance.Infrastructure   AttendanceDbContext, migrations, EfEmployeeRepository, AddInfrastructure()
-src/FreeCodeSpot.Attendance.Api              minimal API, GET /api/employees and GET /api/employees/{id}
-src/FreeCodeSpot.Attendance.Web              Blazor Web App (interactive server), Employees page
+src/FreeCodeSpot.Attendance.Api              minimal API for the roster, see Endpoints below
+src/FreeCodeSpot.Attendance.Web              Blazor Web App (interactive server), Employees page, Add and Edit pages
 tests/FreeCodeSpot.Attendance.UnitTests      xUnit tests for EmployeeService
 tests/FreeCodeSpot.Attendance.IntegrationTests   API and repository tests against a SQL Server test database
 ```
 
-The roster is stored in SQL Server through Entity Framework Core. The first migration creates the `Employees` table and seeds five employees.
+The roster is stored in SQL Server through Entity Framework Core. The first migration creates the `Employees` table and seeds five employees. The second adds the `IsActive` column, with existing employees set to active.
 
 ## Requirements
 
@@ -40,6 +40,8 @@ Create the database from the repository root:
 ```bash
 dotnet ef database update --project src/FreeCodeSpot.Attendance.Infrastructure --startup-project src/FreeCodeSpot.Attendance.Api
 ```
+
+If you already have the database from an earlier article, run the same command. It applies only the migrations you are missing.
 
 ## Running it
 
@@ -67,14 +69,18 @@ dotnet run --launch-profile https
 | API | https://localhost:7020 |
 | Web | https://localhost:7098 |
 
-Open https://localhost:7098/employees to see the roster. The Web app reads the API address from `AttendanceApi:BaseUrl` in `appsettings.json`.
+Open https://localhost:7098/employees to manage the roster. The Web app reads the API address from `AttendanceApi:BaseUrl` in `appsettings.json`.
 
 ## Endpoints
 
 | Method | Route | Returns |
 |---|---|---|
-| GET | `/api/employees` | the roster ordered by name |
-| GET | `/api/employees/{id}` | one employee, or 404 |
+| GET | `/api/employees` | active employees ordered by name; `?includeInactive=true` adds inactive ones |
+| GET | `/api/employees/{id}` | one employee (active or not), or 404 |
+| POST | `/api/employees` | 201 with the new employee, or 400 with field errors |
+| PUT | `/api/employees/{id}` | 200 with the updated employee, 400, or 404 |
+| POST | `/api/employees/{id}/deactivate` | 204, or 404 |
+| POST | `/api/employees/{id}/activate` | 204, or 404 |
 
 ## Articles
 
@@ -82,3 +88,4 @@ Open https://localhost:7098/employees to see the roster. The Web app reads the A
 |---|---|
 | `article-001` | Project setup: solution structure, employee API, and the Blazor Employees page |
 | `article-002` | SQL Server with EF Core: DbContext, first migration, seeded roster |
+| `article-003` | Employee management: add, edit, deactivate and reactivate, validation, async repository |
