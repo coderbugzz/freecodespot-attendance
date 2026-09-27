@@ -20,7 +20,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FreeCodeSpot.Attendance.Application\FreeCodeSpot.Attendance.Application.csproj" />
-    <ProjectReference Include="..\..\src\FreeCodeSpot.Attendance.Infrastructure\FreeCodeSpot.Attendance.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

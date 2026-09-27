@@ -6,28 +6,44 @@ Each published article corresponds to an immutable Git tag `article-NNN`. Check 
 
 ## What is here
 
-An ASP.NET Core minimal API that serves an employee roster, and a Blazor Web App that displays it.
+An ASP.NET Core minimal API that serves an employee roster from SQL Server, and a Blazor Web App that displays it.
 
 ```
 src/FreeCodeSpot.Attendance.Domain           Employee record
 src/FreeCodeSpot.Attendance.Application      EmployeeService and IEmployeeRepository
-src/FreeCodeSpot.Attendance.Infrastructure   InMemoryEmployeeRepository, AddInfrastructure()
+src/FreeCodeSpot.Attendance.Infrastructure   AttendanceDbContext, migrations, EfEmployeeRepository, AddInfrastructure()
 src/FreeCodeSpot.Attendance.Api              minimal API, GET /api/employees and GET /api/employees/{id}
 src/FreeCodeSpot.Attendance.Web              Blazor Web App (interactive server), Employees page
-tests/FreeCodeSpot.Attendance.UnitTests      xUnit tests for the service and repository
-tests/FreeCodeSpot.Attendance.IntegrationTests   WebApplicationFactory tests against the API
+tests/FreeCodeSpot.Attendance.UnitTests      xUnit tests for EmployeeService
+tests/FreeCodeSpot.Attendance.IntegrationTests   API and repository tests against a SQL Server test database
 ```
 
-The roster is held in memory and seeded with five employees at startup.
+The roster is stored in SQL Server through Entity Framework Core. The first migration creates the `Employees` table and seeds five employees.
 
 ## Requirements
 
 - .NET 10 SDK
 - A trusted HTTPS development certificate (`dotnet dev-certs https --trust`)
+- SQL Server LocalDB (installed with Visual Studio), or any SQL Server instance
+- The EF Core CLI: `dotnet tool install --global dotnet-ef`
+
+## Database
+
+The API reads its connection string from `ConnectionStrings:AttendanceDb` in `src/FreeCodeSpot.Attendance.Api/appsettings.json`. The default points at LocalDB:
+
+```
+Server=(localdb)\MSSQLLocalDB;Database=FreeCodeSpotAttendance;Trusted_Connection=True;TrustServerCertificate=True
+```
+
+Create the database from the repository root:
+
+```bash
+dotnet ef database update --project src/FreeCodeSpot.Attendance.Infrastructure --startup-project src/FreeCodeSpot.Attendance.Api
+```
 
 ## Running it
 
-Build and test from the repository root:
+Build and test from the repository root. The integration tests create a separate `FreeCodeSpotAttendance_Tests` database on LocalDB and drop it when they finish:
 
 ```bash
 dotnet build
@@ -65,3 +81,4 @@ Open https://localhost:7098/employees to see the roster. The Web app reads the A
 | Tag | Article |
 |---|---|
 | `article-001` | Project setup: solution structure, employee API, and the Blazor Employees page |
+| `article-002` | SQL Server with EF Core: DbContext, first migration, seeded roster |

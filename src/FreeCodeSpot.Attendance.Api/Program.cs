@@ -5,7 +5,11 @@ using FreeCodeSpot.Attendance.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddInfrastructure();
+var connectionString = builder.Configuration.GetConnectionString("AttendanceDb")
+    ?? throw new InvalidOperationException(
+        "ConnectionStrings:AttendanceDb is not configured. Add it to appsettings.json.");
+
+builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EmployeeService>();
 
 var app = builder.Build();

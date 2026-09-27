@@ -1,5 +1,7 @@
 using FreeCodeSpot.Attendance.Application.Employees;
 using FreeCodeSpot.Attendance.Infrastructure.Employees;
+using FreeCodeSpot.Attendance.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FreeCodeSpot.Attendance.Infrastructure;
@@ -10,9 +12,14 @@ namespace FreeCodeSpot.Attendance.Infrastructure;
 /// </summary>
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        string connectionString)
     {
-        services.AddSingleton<IEmployeeRepository, InMemoryEmployeeRepository>();
+        services.AddDbContext<AttendanceDbContext>(options =>
+            options.UseSqlServer(connectionString));
+
+        services.AddScoped<IEmployeeRepository, EfEmployeeRepository>();
         return services;
     }
 }

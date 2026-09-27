@@ -1,16 +1,15 @@
 using System.Net;
 using System.Net.Http.Json;
 using FreeCodeSpot.Attendance.Domain.Employees;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace FreeCodeSpot.Attendance.IntegrationTests.Employees;
 
 /// <summary>
 /// Boots the real API in memory and calls it over HTTP, so routing, DI and
-/// JSON serialization are all exercised together.
+/// JSON serialization are all exercised together, against the test database.
 /// </summary>
-public class EmployeeEndpointsTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+[Collection(AttendanceApiCollection.Name)]
+public class EmployeeEndpointsTests(AttendanceApiFactory factory)
 {
     private readonly HttpClient client = factory.CreateClient();
 
