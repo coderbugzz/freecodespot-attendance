@@ -3,6 +3,7 @@ using FreeCodeSpot.Attendance.Api.Endpoints;
 using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Employees;
 using FreeCodeSpot.Attendance.Application.Security;
+using FreeCodeSpot.Attendance.Application.Timesheets;
 using FreeCodeSpot.Attendance.Infrastructure;
 using FreeCodeSpot.Attendance.Infrastructure.Identity;
 using FreeCodeSpot.Attendance.Infrastructure.Persistence;
@@ -19,6 +20,13 @@ builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EmployeeService>();
 builder.Services.AddScoped<AttendanceService>();
 builder.Services.AddSingleton(TimeProvider.System);
+
+// A day on a timesheet is a day in this time zone. Without a setting, it is the time zone of the server.
+var timeZoneId = builder.Configuration["Attendance:TimeZoneId"];
+builder.Services.AddSingleton(string.IsNullOrWhiteSpace(timeZoneId)
+    ? TimeZoneInfo.Local
+    : TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
+builder.Services.AddScoped<TimesheetService>();
 
 // Authentication: callers present a bearer token that /auth/login issued.
 builder.Services.AddAuthentication(IdentityConstants.BearerScheme)

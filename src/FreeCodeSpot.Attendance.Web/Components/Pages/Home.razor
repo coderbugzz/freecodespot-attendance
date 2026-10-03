@@ -13,7 +13,10 @@
 </AuthorizeView>
 
 <AuthorizeView Policy="@AppPolicies.HasEmployeeRecord">
-    <p>Open <a href="my-attendance">My attendance</a> to clock in and out and to see your latest records.</p>
+    <p>
+        Open <a href="my-attendance">My attendance</a> to clock in and out and to see your latest records, or
+        <a href="my-timesheet">My timesheet</a> for the hours you worked on each day.
+    </p>
 </AuthorizeView>
 
 <AuthorizeView Roles="@AppRoles.Manager">

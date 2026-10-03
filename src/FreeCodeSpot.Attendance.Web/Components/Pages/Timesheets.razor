@@ -1,0 +1,101 @@
+@page "/timesheets"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = AppRoles.Manager)]
+@using FreeCodeSpot.Attendance.Web.Components.Timesheets
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject AttendanceApiClient AttendanceApi
+@inject EmployeeApiClient EmployeeApi
+
+<PageTitle>Timesheets</PageTitle>
+
+<h1>Timesheets</h1>
+
+<p>The records and the hours worked between two dates. Leave the employee empty to see everyone.</p>
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-auto">
+        <label for="from" class="form-label">From</label>
+        <input id="from" type="date" class="form-control" @bind="from" @bind:format="yyyy-MM-dd" />
+    </div>
+    <div class="col-auto">
+        <label for="to" class="form-label">To</label>
+        <input id="to" type="date" class="form-control" @bind="to" @bind:format="yyyy-MM-dd" />
+    </div>
+    <div class="col-auto">
+        <label for="employee" class="form-label">Employee</label>
+        <select id="employee" class="form-select" @bind="employeeId">
+            <option value="0">All employees</option>
+            @foreach (var employee in employees)
+            {
+                <option value="@employee.Id">@employee.FullName</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" @onclick="LoadAsync">Show timesheet</button>
+    </div>
+</div>
+
+@if (message is not null)
+{
+    <div class="alert alert-warning" role="alert">@message</div>
+}
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        The timesheet could not be loaded. Check that the attendance API is running, then try again.
+    </div>
+}
+else if (timesheet is not null)
+{
+    <TimesheetTable Timesheet="timesheet" />
+}
+
+@code {
+    private IReadOnlyList<Employee> employees = [];
+    private DateOnly? from;
+    private DateOnly? to;
+    private int employeeId;
+    private Timesheet? timesheet;
+    private string? message;
+    private bool loadFailed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            employees = await EmployeeApi.GetEmployeesAsync(includeInactive: true);
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+            return;
+        }
+
+        // Without dates, the API answers with the last seven days, and we show them in the inputs.
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var response = await AttendanceApi.GetTimesheetAsync(from, to, employeeId == 0 ? null : employeeId);
+
+            message = response.Message;
+            loadFailed = false;
+            if (response.Timesheet is { } result)
+            {
+                timesheet = result;
+                from = result.From;
+                to = result.To;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+        }
+    }
+}

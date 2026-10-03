@@ -6,19 +6,19 @@ Each published article corresponds to an immutable Git tag `article-NNN`. Check 
 
 ## What is here
 
-An ASP.NET Core minimal API that manages an employee roster and their clock-ins in SQL Server, and a Blazor Web App to add, edit, deactivate and reactivate employees and to clock them in and out. Employees are never deleted. Users sign in with an email and a password. Managers can open the Employees pages and the Clock in and out page, and employees clock themselves in and out on a My attendance page.
+An ASP.NET Core minimal API that manages an employee roster and their clock-ins in SQL Server, and a Blazor Web App to add, edit, deactivate and reactivate employees and to clock them in and out and to see timesheets. Employees are never deleted. Users sign in with an email and a password. Managers can open the Employees pages and the Clock in and out page, and employees clock themselves in and out on a My attendance page. Timesheets show the records and the hours worked between two dates: managers see anyone, and employees see their own.
 
 ```
 src/FreeCodeSpot.Attendance.Domain           Employee record (with IsActive), AttendanceRecord
-src/FreeCodeSpot.Attendance.Application      EmployeeService (the roster rules), IEmployeeRepository, EmployeeDetails, EmployeeResult, Roles, AttendanceService (the clock-in and clock-out rules), IAttendanceRepository
-src/FreeCodeSpot.Attendance.Infrastructure   AttendanceDbContext (Identity and employees), migrations, EfEmployeeRepository, EfAttendanceRepository, IdentitySeeder, AddInfrastructure()
+src/FreeCodeSpot.Attendance.Application      EmployeeService (the roster rules), IEmployeeRepository, EmployeeDetails, EmployeeResult, Roles, AttendanceService (the clock-in and clock-out rules), IAttendanceRepository, TimesheetService (days and hours), ITimesheetRepository
+src/FreeCodeSpot.Attendance.Infrastructure   AttendanceDbContext (Identity and employees), migrations, EfEmployeeRepository, EfAttendanceRepository, EfTimesheetRepository, IdentitySeeder, AddInfrastructure()
 src/FreeCodeSpot.Attendance.Api              minimal API: bearer-token login and the protected roster routes, see Endpoints below
 src/FreeCodeSpot.Attendance.Web              Blazor Web App (interactive server): login, role-aware navigation, Employees, Add and Edit pages, Clock in and out page
 tests/FreeCodeSpot.Attendance.UnitTests      xUnit tests for EmployeeService
 tests/FreeCodeSpot.Attendance.IntegrationTests   API and repository tests against a SQL Server test database
 ```
 
-The roster is stored in SQL Server through Entity Framework Core. The first migration creates the `Employees` table and seeds five employees. The second adds the `IsActive` column, with existing employees set to active. The third adds the ASP.NET Core Identity tables for users and roles. The fourth adds the `AttendanceRecords` table, with a unique index that allows only one open record per employee.
+The roster is stored in SQL Server through Entity Framework Core. The first migration creates the `Employees` table and seeds five employees. The second adds the `IsActive` column, with existing employees set to active. The third adds the ASP.NET Core Identity tables for users and roles. The fourth adds the `AttendanceRecords` table, with a unique index that allows only one open record per employee. The fifth adds an index on the employee and the clock-in time, for the timesheet queries.
 
 ## Requirements
 
@@ -71,6 +71,10 @@ dotnet run --launch-profile https
 
 Open https://localhost:7098/employees to manage the roster. The Web app reads the API address from `AttendanceApi:BaseUrl` in `appsettings.json`.
 
+## Time zone
+
+A day on a timesheet is a day in the time zone from `Attendance:TimeZoneId` in `src/FreeCodeSpot.Attendance.Api/appsettings.json`, for example `Asia/Manila`. When the setting is empty, the API uses the time zone of the server. A record counts on the day it was clocked in, even if it ends after midnight. A range can be at most 31 days, and records that are still open are listed but add nothing to the totals. The timesheet pages show the times in the time zone the API used, so both apps should run on the same machine or use the same setting.
+
 ## Signing in
 
 Every page needs a signed-in user. The API owns the users and roles, in the same database as the employees. In Development it creates two demo accounts on startup: `manager@attendance.local` (role Manager) and `employee@attendance.local` (role Employee). Both use the password in `SeedUsers:Password` in `src/FreeCodeSpot.Attendance.Api/appsettings.Development.json`. That file is for development only.
@@ -97,6 +101,8 @@ Only managers can open the Employees and Clock in and out pages or call `/api/em
 | GET | `/api/attendance/me` | the signed-in user's own status and latest five records, or 403 without a linked employee |
 | POST | `/api/attendance/me/clock-in` | like clock-in, for the linked employee only |
 | POST | `/api/attendance/me/clock-out` | like clock-out, for the linked employee only |
+| GET | `/api/attendance/timesheet` | records and hours worked per employee and day between `from` and `to` (default: the last 7 days), for one `employeeId` or everyone; 400 for a bad range, 404 for an unknown employee; managers only |
+| GET | `/api/attendance/me/timesheet` | the same, for the linked employee only |
 
 Every `/api/employees` and `/api/attendance` route needs a Manager token: 401 without one, 403 for an Employee. The `/me` routes need a token with an `employee_id` claim instead. Times are stored and returned in UTC.
 
@@ -110,3 +116,4 @@ Every `/api/employees` and `/api/attendance` route needs a Manager token: 401 wi
 | `article-004` | Authentication and roles: ASP.NET Core Identity, bearer-token login, Manager and Employee roles, protected pages and API |
 | `article-005` | Clock in and clock out: attendance records, the clocking rules, and a manager page |
 | `article-006` | Employees clock themselves in: linking a user to an employee, the My attendance page and routes |
+| `article-007` | Attendance history and timesheets: date ranges, hours worked, LINQ projections |

@@ -1,0 +1,81 @@
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+
+@if (Timesheet.Employees.Count == 0)
+{
+    <p><em>There are no records between @Timesheet.From.ToString("d") and @Timesheet.To.ToString("d").</em></p>
+}
+else
+{
+    @foreach (var employee in Timesheet.Employees)
+    {
+        <h2 class="h5 mt-4">
+            @employee.FullName
+            <small class="text-body-secondary">@employee.Department</small>
+        </h2>
+
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Clocked in and out</th>
+                    <th scope="col" class="text-end">Worked</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var day in employee.Days)
+                {
+                    <tr>
+                        <td class="text-nowrap">@day.Date.ToString("ddd d MMM")</td>
+                        <td>
+                            @foreach (var entry in day.Entries)
+                            {
+                                <div>
+                                    @InZone(entry.ClockInUtc).ToString("t")
+                                    to
+                                    @if (entry.ClockOutUtc is { } clockOut)
+                                    {
+                                        @InZone(clockOut).ToString("t")
+                                    }
+                                    else
+                                    {
+                                        <em>still clocked in</em>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">@day.Worked.ToHoursAndMinutes()</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th scope="row" colspan="2">Total</th>
+                    <th class="text-end text-nowrap">@employee.TotalWorked.ToHoursAndMinutes()</th>
+                </tr>
+            </tfoot>
+        </table>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public Timesheet Timesheet { get; set; } = default!;
+
+    // The API decided the days in its own time zone, so the times are shown in that zone too.
+    private TimeZoneInfo zone = TimeZoneInfo.Local;
+
+    protected override void OnParametersSet()
+    {
+        try
+        {
+            zone = TimeZoneInfo.FindSystemTimeZoneById(Timesheet.TimeZoneId);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            zone = TimeZoneInfo.Local;
+        }
+    }
+
+    private DateTime InZone(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, zone).DateTime;
+}

@@ -1,0 +1,75 @@
+@page "/my-timesheet"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = AppPolicies.HasEmployeeRecord)]
+@using FreeCodeSpot.Attendance.Web.Components.Timesheets
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject AttendanceApiClient AttendanceApi
+
+<PageTitle>My timesheet</PageTitle>
+
+<h1>My timesheet</h1>
+
+<p>Your records and the hours you worked between two dates.</p>
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-auto">
+        <label for="from" class="form-label">From</label>
+        <input id="from" type="date" class="form-control" @bind="from" @bind:format="yyyy-MM-dd" />
+    </div>
+    <div class="col-auto">
+        <label for="to" class="form-label">To</label>
+        <input id="to" type="date" class="form-control" @bind="to" @bind:format="yyyy-MM-dd" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" @onclick="LoadAsync">Show timesheet</button>
+    </div>
+</div>
+
+@if (message is not null)
+{
+    <div class="alert alert-warning" role="alert">@message</div>
+}
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        Your timesheet could not be loaded. Check that the attendance API is running, then try again.
+    </div>
+}
+else if (timesheet is not null)
+{
+    <TimesheetTable Timesheet="timesheet" />
+}
+
+@code {
+    private DateOnly? from;
+    private DateOnly? to;
+    private Timesheet? timesheet;
+    private string? message;
+    private bool loadFailed;
+
+    // Without dates, the API answers with the last seven days, and we show them in the inputs.
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var response = await AttendanceApi.GetMyTimesheetAsync(from, to);
+
+            message = response.Message;
+            loadFailed = false;
+            if (response.Timesheet is { } result)
+            {
+                timesheet = result;
+                from = result.From;
+                to = result.To;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+        }
+    }
+}

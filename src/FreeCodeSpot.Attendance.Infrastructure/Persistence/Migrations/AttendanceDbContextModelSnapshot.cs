@@ -46,6 +46,9 @@ namespace FreeCodeSpot.Attendance.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_AttendanceRecords_OneOpenRecordPerEmployee")
                         .HasFilter("[ClockOutUtc] IS NULL");
 
+                    b.HasIndex("EmployeeId", "ClockInUtc")
+                        .HasDatabaseName("IX_AttendanceRecords_EmployeeId_ClockInUtc");
+
                     b.ToTable("AttendanceRecords", (string)null);
                 });
 

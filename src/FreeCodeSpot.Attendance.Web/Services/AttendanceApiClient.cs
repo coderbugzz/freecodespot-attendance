@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 using System.Net.Http.Json;
 using FreeCodeSpot.Attendance.Web.Models;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -26,6 +27,13 @@ public sealed class AttendanceApiClient(HttpClient httpClient, AuthenticationSta
         return await httpClient.GetFromJsonAsync<MyAttendance>("api/attendance/me", cancellationToken);
     }
 
+    /// <summary>Without dates, the API answers with the last seven days.</summary>
+    public Task<TimesheetResponse> GetTimesheetAsync(DateOnly? from, DateOnly? to, int? employeeId, CancellationToken cancellationToken = default) =>
+        GetTimesheetAsync("api/attendance/timesheet", from, to, employeeId, cancellationToken);
+
+    public Task<TimesheetResponse> GetMyTimesheetAsync(DateOnly? from, DateOnly? to, CancellationToken cancellationToken = default) =>
+        GetTimesheetAsync("api/attendance/me/timesheet", from, to, employeeId: null, cancellationToken);
+
     public Task<ClockResult> ClockInMyselfAsync(CancellationToken cancellationToken = default) =>
         PostAsync("api/attendance/me/clock-in", cancellationToken);
 
@@ -37,6 +45,38 @@ public sealed class AttendanceApiClient(HttpClient httpClient, AuthenticationSta
 
     public Task<ClockResult> ClockOutAsync(int employeeId, CancellationToken cancellationToken = default) =>
         PostAsync($"api/attendance/{employeeId}/clock-out", cancellationToken);
+
+    private async Task<TimesheetResponse> GetTimesheetAsync(
+        string route,
+        DateOnly? from,
+        DateOnly? to,
+        int? employeeId,
+        CancellationToken cancellationToken)
+    {
+        await httpClient.UseSignedInUserAsync(authenticationStateProvider);
+
+        var query = new List<string>();
+        if (from is { } start) query.Add($"from={start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}");
+        if (to is { } end) query.Add($"to={end.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}");
+        if (employeeId is { } id) query.Add($"employeeId={id}");
+
+        using var response = await httpClient.GetAsync(
+            query.Count == 0 ? route : $"{route}?{string.Join("&", query)}",
+            cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            // The API names the problem for each field. The page only needs the messages.
+            var problem = await response.Content.ReadFromJsonAsync<ValidationProblemResponse>(cancellationToken);
+            var messages = problem?.Errors.Values.SelectMany(errors => errors) ?? [];
+            return TimesheetResponse.Refused(string.Join(" ", messages));
+        }
+
+        response.EnsureSuccessStatusCode();
+        var timesheet = await response.Content.ReadFromJsonAsync<Timesheet>(cancellationToken)
+            ?? throw new InvalidOperationException("The API returned an empty timesheet.");
+        return TimesheetResponse.Of(timesheet);
+    }
 
     private async Task<ClockResult> PostAsync(string route, CancellationToken cancellationToken)
     {
@@ -67,4 +107,7 @@ public sealed class AttendanceApiClient(HttpClient httpClient, AuthenticationSta
 
     /// <summary>The part of the API's problem response the page shows.</summary>
     private sealed record ProblemResponse(string? Detail);
+
+    /// <summary>The part of the API's validation problem response the timesheet pages show.</summary>
+    private sealed record ValidationProblemResponse(Dictionary<string, string[]> Errors);
 }

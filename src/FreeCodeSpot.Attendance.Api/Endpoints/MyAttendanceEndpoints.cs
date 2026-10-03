@@ -3,6 +3,7 @@ using System.Security.Claims;
 using FreeCodeSpot.Attendance.Api.Auth;
 using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Security;
+using FreeCodeSpot.Attendance.Application.Timesheets;
 using FreeCodeSpot.Attendance.Domain.Attendance;
 
 namespace FreeCodeSpot.Attendance.Api.Endpoints;
@@ -27,6 +28,13 @@ public static class MyAttendanceEndpoints
             })
             .WithName("GetMyAttendance")
             .Produces<MyAttendance>()
+            .Produces(StatusCodes.Status404NotFound);
+
+        group.MapGet("/timesheet", async (DateOnly? from, DateOnly? to, ClaimsPrincipal user, TimesheetService timesheets, CancellationToken cancellationToken) =>
+                AttendanceEndpoints.ToResult(await timesheets.GetTimesheetAsync(from, to, GetEmployeeId(user), cancellationToken)))
+            .WithName("GetMyTimesheet")
+            .Produces<Timesheet>()
+            .ProducesValidationProblem()
             .Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("/clock-in", async (ClaimsPrincipal user, AttendanceService attendance, CancellationToken cancellationToken) =>

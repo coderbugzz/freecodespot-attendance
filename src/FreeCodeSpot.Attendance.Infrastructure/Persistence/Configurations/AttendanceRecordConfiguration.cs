@@ -27,6 +27,10 @@ public sealed class AttendanceRecordConfiguration : IEntityTypeConfiguration<Att
             .HasForeignKey(record => record.EmployeeId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Timesheets ask for the records of an employee between two times.
+        builder.HasIndex(record => new { record.EmployeeId, record.ClockInUtc })
+            .HasDatabaseName("IX_AttendanceRecords_EmployeeId_ClockInUtc");
+
         builder.HasIndex(record => record.EmployeeId)
             .IsUnique()
             .HasFilter("[ClockOutUtc] IS NULL")

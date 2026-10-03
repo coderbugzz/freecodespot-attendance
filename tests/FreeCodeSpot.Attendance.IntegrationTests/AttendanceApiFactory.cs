@@ -37,6 +37,8 @@ public sealed class AttendanceApiFactory : WebApplicationFactory<Program>, IAsyn
         builder.UseSetting("SeedUsers:ManagerEmail", ManagerEmail);
         builder.UseSetting("SeedUsers:EmployeeEmail", EmployeeEmail);
         builder.UseSetting("SeedUsers:Password", Password);
+        // The days of a timesheet are UTC days, so the tests do not depend on the machine.
+        builder.UseSetting("Attendance:TimeZoneId", "UTC");
         // The seeded roster has Regie Baquero (id 1) and Anna Cruz (id 2).
         builder.UseSetting("SeedUsers:ManagerRosterEmail", "regie@freecodespot.local");
         builder.UseSetting("SeedUsers:EmployeeRosterEmail", "anna@freecodespot.local");

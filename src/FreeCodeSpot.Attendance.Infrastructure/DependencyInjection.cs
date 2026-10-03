@@ -1,8 +1,10 @@
 using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Employees;
+using FreeCodeSpot.Attendance.Application.Timesheets;
 using FreeCodeSpot.Attendance.Infrastructure.Attendance;
 using FreeCodeSpot.Attendance.Infrastructure.Employees;
 using FreeCodeSpot.Attendance.Infrastructure.Persistence;
+using FreeCodeSpot.Attendance.Infrastructure.Timesheets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,6 +25,7 @@ public static class DependencyInjection
 
         services.AddScoped<IEmployeeRepository, EfEmployeeRepository>();
         services.AddScoped<IAttendanceRepository, EfAttendanceRepository>();
+        services.AddScoped<ITimesheetRepository, EfTimesheetRepository>();
         return services;
     }
 }
