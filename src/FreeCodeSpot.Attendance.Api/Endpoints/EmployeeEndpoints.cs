@@ -1,3 +1,4 @@
+using FreeCodeSpot.Attendance.Api.Auth;
 using FreeCodeSpot.Attendance.Application.Employees;
 using FreeCodeSpot.Attendance.Domain.Employees;
 
@@ -12,7 +13,8 @@ public static class EmployeeEndpoints
     public static IEndpointRouteBuilder MapEmployeeEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/employees")
-            .WithTags("Employees");
+            .WithTags("Employees")
+            .RequireAuthorization(Policies.ManagerOnly);
 
         group.MapGet("/", async (EmployeeService employees, CancellationToken cancellationToken, bool includeInactive = false) =>
                 Results.Ok(await employees.GetRosterAsync(includeInactive, cancellationToken)))

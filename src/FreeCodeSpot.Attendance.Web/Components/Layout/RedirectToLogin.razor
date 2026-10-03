@@ -1,0 +1,10 @@
+@inject NavigationManager Navigation
+
+@code {
+    // Send visitors who are not signed in to the login page, and bring them back here afterwards.
+    protected override void OnInitialized()
+    {
+        var returnUrl = Uri.EscapeDataString("/" + Navigation.ToBaseRelativePath(Navigation.Uri));
+        Navigation.NavigateTo($"login?returnUrl={returnUrl}", forceLoad: true);
+    }
+}

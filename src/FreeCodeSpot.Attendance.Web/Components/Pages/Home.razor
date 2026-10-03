@@ -1,10 +1,27 @@
 @page "/"
+@attribute [Authorize]
 
 <PageTitle>Attendance</PageTitle>
 
 <h1>Employee Attendance System</h1>
 
-<p>
-    A Blazor front end backed by an ASP.NET Core Web API. Open the
-    <a href="employees">Employees</a> page to see the roster the API serves.
-</p>
+<AuthorizeView>
+    <p>
+        Signed in as <strong>@context.User.Identity?.Name</strong>
+        (@string.Join(", ", context.User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(claim => claim.Value))).
+    </p>
+</AuthorizeView>
+
+<AuthorizeView Roles="@AppRoles.Manager">
+    <Authorized>
+        <p>
+            A Blazor front end backed by an ASP.NET Core Web API. Open the
+            <a href="employees">Employees</a> page to manage the roster the API serves.
+        </p>
+    </Authorized>
+    <NotAuthorized>
+        <p>
+            A Blazor front end backed by an ASP.NET Core Web API. The employee roster is managed by managers.
+        </p>
+    </NotAuthorized>
+</AuthorizeView>

@@ -10,9 +10,18 @@ namespace FreeCodeSpot.Attendance.IntegrationTests.Employees;
 /// JSON serialization are all exercised together, against the test database.
 /// </summary>
 [Collection(AttendanceApiCollection.Name)]
-public class EmployeeEndpointsTests(AttendanceApiFactory factory)
+public class EmployeeEndpointsTests(AttendanceApiFactory factory) : IAsyncLifetime
 {
-    private readonly HttpClient client = factory.CreateClient();
+    private HttpClient client = null!;
+
+    public async Task InitializeAsync() =>
+        client = await factory.CreateSignedInClientAsync(AttendanceApiFactory.ManagerEmail);
+
+    public Task DisposeAsync()
+    {
+        client.Dispose();
+        return Task.CompletedTask;
+    }
 
     [Fact]
     public async Task GetEmployees_ReturnsTheRosterOrderedByName()

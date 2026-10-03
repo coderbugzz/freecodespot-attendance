@@ -1,5 +1,6 @@
 @page "/employees"
 @rendermode InteractiveServer
+@attribute [Authorize(Roles = AppRoles.Manager)]
 @using FreeCodeSpot.Attendance.Web.Models
 @using FreeCodeSpot.Attendance.Web.Services
 @inject EmployeeApiClient EmployeeApi

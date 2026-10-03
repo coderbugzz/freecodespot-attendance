@@ -1,0 +1,88 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using FreeCodeSpot.Attendance.Web.Services
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@inject AuthApiClient AuthApi
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in</PageTitle>
+
+<h1>Sign in</h1>
+
+<p>Sign in with your attendance account.</p>
+
+@if (errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<EditForm Model="Input" FormName="login" OnValidSubmit="SignInAsync" class="login-form">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" />
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="Input!.Email" autocomplete="username" />
+    </div>
+
+    <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <InputText id="password" type="password" class="form-control" @bind-Value="Input!.Password" autocomplete="current-password" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Sign in</button>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromForm]
+    private LoginModel? Input { get; set; }
+
+    private string? errorMessage;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    private async Task SignInAsync()
+    {
+        SignedInUser? user;
+        try
+        {
+            user = await AuthApi.LoginAsync(Input!.Email, Input!.Password);
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "The attendance API could not be reached. Check that it is running, then try again.";
+            return;
+        }
+
+        if (user is null)
+        {
+            errorMessage = "The email or password is not correct.";
+            return;
+        }
+
+        // The cookie stops working when the API token does.
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            user.ToPrincipal(),
+            new AuthenticationProperties { ExpiresUtc = DateTimeOffset.UtcNow.Add(user.ExpiresIn) });
+
+        Navigation.NavigateTo(Security.ReturnUrl.OrHome(ReturnUrl));
+    }
+
+    private sealed class LoginModel
+    {
+        [Required(ErrorMessage = "Enter your email.")]
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Enter your password.")]
+        public string Password { get; set; } = "";
+    }
+}

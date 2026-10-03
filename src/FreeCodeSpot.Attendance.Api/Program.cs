@@ -1,6 +1,11 @@
+using FreeCodeSpot.Attendance.Api.Auth;
 using FreeCodeSpot.Attendance.Api.Endpoints;
 using FreeCodeSpot.Attendance.Application.Employees;
+using FreeCodeSpot.Attendance.Application.Security;
 using FreeCodeSpot.Attendance.Infrastructure;
+using FreeCodeSpot.Attendance.Infrastructure.Identity;
+using FreeCodeSpot.Attendance.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,15 +17,36 @@ var connectionString = builder.Configuration.GetConnectionString("AttendanceDb")
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EmployeeService>();
 
+// Authentication: callers present a bearer token that /auth/login issued.
+builder.Services.AddAuthentication(IdentityConstants.BearerScheme)
+    .AddBearerToken(IdentityConstants.BearerScheme);
+
+// Identity: users and roles in the same database, plus the SignInManager that checks passwords.
+builder.Services.AddIdentityCore<IdentityUser>()
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<AttendanceDbContext>()
+    .AddSignInManager();
+
+// Authorization: a named policy per rule, so endpoints say what they need.
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Policies.ManagerOnly, policy => policy.RequireRole(Roles.Manager));
+
+builder.Services.Configure<SeedUsersOptions>(builder.Configuration.GetSection(SeedUsersOptions.SectionName));
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    await IdentitySeeder.SeedAsync(app.Services);
 }
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapAuthEndpoints();
 app.MapEmployeeEndpoints();
 
 app.Run();

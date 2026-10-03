@@ -1,5 +1,6 @@
 @page "/employees/{Id:int}/edit"
 @rendermode InteractiveServer
+@attribute [Authorize(Roles = AppRoles.Manager)]
 @using FreeCodeSpot.Attendance.Web.Components.Employees
 @using FreeCodeSpot.Attendance.Web.Models
 @using FreeCodeSpot.Attendance.Web.Services

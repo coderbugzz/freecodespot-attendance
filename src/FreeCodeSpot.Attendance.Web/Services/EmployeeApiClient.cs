@@ -1,19 +1,27 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FreeCodeSpot.Attendance.Web.Models;
+using FreeCodeSpot.Attendance.Web.Security;
+using Microsoft.AspNetCore.Components.Authorization;
 
 namespace FreeCodeSpot.Attendance.Web.Services;
 
 /// <summary>
 /// Calls the attendance API. Components depend on this instead of holding an
-/// HttpClient and a route string of their own.
+/// HttpClient and a route string of their own. Every call carries the API token
+/// of the signed-in user.
 /// </summary>
-public sealed class EmployeeApiClient(HttpClient httpClient, ILogger<EmployeeApiClient> logger)
+public sealed class EmployeeApiClient(
+    HttpClient httpClient,
+    AuthenticationStateProvider authenticationStateProvider,
+    ILogger<EmployeeApiClient> logger)
 {
     public async Task<IReadOnlyList<Employee>> GetEmployeesAsync(
         bool includeInactive = false,
         CancellationToken cancellationToken = default)
     {
+        await UseSignedInUserAsync();
         logger.LogInformation("Requesting the employee roster from {BaseAddress}", httpClient.BaseAddress);
 
         var route = includeInactive ? "api/employees?includeInactive=true" : "api/employees";
@@ -24,6 +32,7 @@ public sealed class EmployeeApiClient(HttpClient httpClient, ILogger<EmployeeApi
 
     public async Task<Employee?> GetEmployeeAsync(int id, CancellationToken cancellationToken = default)
     {
+        await UseSignedInUserAsync();
         using var response = await httpClient.GetAsync($"api/employees/{id}", cancellationToken);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -36,12 +45,14 @@ public sealed class EmployeeApiClient(HttpClient httpClient, ILogger<EmployeeApi
 
     public async Task<SaveResult> CreateAsync(EmployeeFormModel form, CancellationToken cancellationToken = default)
     {
+        await UseSignedInUserAsync();
         using var response = await httpClient.PostAsJsonAsync("api/employees", ToRequest(form), cancellationToken);
         return await ToSaveResultAsync(response, cancellationToken);
     }
 
     public async Task<SaveResult> UpdateAsync(int id, EmployeeFormModel form, CancellationToken cancellationToken = default)
     {
+        await UseSignedInUserAsync();
         using var response = await httpClient.PutAsJsonAsync($"api/employees/{id}", ToRequest(form), cancellationToken);
         return await ToSaveResultAsync(response, cancellationToken);
     }
@@ -54,8 +65,18 @@ public sealed class EmployeeApiClient(HttpClient httpClient, ILogger<EmployeeApi
 
     private async Task<SaveResult> PostActionAsync(string route, CancellationToken cancellationToken)
     {
+        await UseSignedInUserAsync();
         using var response = await httpClient.PostAsync(route, content: null, cancellationToken);
         return await ToSaveResultAsync(response, cancellationToken);
+    }
+
+    private async Task UseSignedInUserAsync()
+    {
+        var state = await authenticationStateProvider.GetAuthenticationStateAsync();
+        var token = state.User.FindFirst(SignedInUser.AccessTokenClaim)?.Value;
+
+        httpClient.DefaultRequestHeaders.Authorization =
+            token is null ? null : new AuthenticationHeaderValue("Bearer", token);
     }
 
     private static object ToRequest(EmployeeFormModel form) =>
