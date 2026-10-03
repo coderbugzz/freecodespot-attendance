@@ -52,6 +52,7 @@ public class AuthEndpointsTests(AttendanceApiFactory factory)
 
         Assert.Equal(AttendanceApiFactory.ManagerEmail, me!.Email);
         Assert.Equal(["Manager"], me.Roles);
+        Assert.Equal(1, me.EmployeeId);
     }
 
     [Fact]
@@ -62,6 +63,7 @@ public class AuthEndpointsTests(AttendanceApiFactory factory)
         var me = await client.GetFromJsonAsync<CurrentUser>("/auth/me");
 
         Assert.Equal(["Employee"], me!.Roles);
+        Assert.Equal(2, me.EmployeeId);
     }
 
     [Fact]

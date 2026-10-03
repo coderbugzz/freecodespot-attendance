@@ -1,11 +1,13 @@
 using System.Security.Claims;
+using FreeCodeSpot.Attendance.Application.Security;
 using Microsoft.AspNetCore.Identity;
 
 namespace FreeCodeSpot.Attendance.Api.Auth;
 
 /// <summary>
 /// Maps the sign-in routes. Login checks the password and answers with a bearer
-/// token. Me tells a signed-in caller who they are and which roles they hold.
+/// token. Me tells a signed-in caller who they are and which roles they hold
+/// and which employee they are.
 /// </summary>
 public static class AuthEndpoints
 {
@@ -35,7 +37,8 @@ public static class AuthEndpoints
         group.MapGet("/me", (ClaimsPrincipal user) =>
                 Results.Ok(new CurrentUser(
                     user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name ?? "",
-                    user.FindAll(ClaimTypes.Role).Select(claim => claim.Value).Order().ToList())))
+                    user.FindAll(ClaimTypes.Role).Select(claim => claim.Value).Order().ToList(),
+                    int.TryParse(user.FindFirstValue(AttendanceClaims.EmployeeId), out var employeeId) ? employeeId : null)))
             .RequireAuthorization()
             .WithName("GetCurrentUser")
             .Produces<CurrentUser>()
@@ -48,5 +51,8 @@ public static class AuthEndpoints
 /// <summary>The body of a login request.</summary>
 public sealed record LoginRequest(string Email, string Password);
 
-/// <summary>Who the bearer token belongs to.</summary>
-public sealed record CurrentUser(string Email, IReadOnlyList<string> Roles);
+/// <summary>
+/// Who the bearer token belongs to. EmployeeId is the employee record linked to
+/// the user, or null when the user is not linked to one.
+/// </summary>
+public sealed record CurrentUser(string Email, IReadOnlyList<string> Roles, int? EmployeeId = null);

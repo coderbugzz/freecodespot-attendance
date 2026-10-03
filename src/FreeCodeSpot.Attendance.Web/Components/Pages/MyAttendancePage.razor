@@ -1,0 +1,122 @@
+@page "/my-attendance"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = AppPolicies.HasEmployeeRecord)]
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject AttendanceApiClient AttendanceApi
+
+<PageTitle>My attendance</PageTitle>
+
+<h1>My attendance</h1>
+
+@if (message is not null)
+{
+    <div class="alert alert-warning" role="alert">@message</div>
+}
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        Your attendance could not be loaded. Check that the attendance API is running, then reload the page.
+    </div>
+}
+else if (mine is null)
+{
+    <p><em>Loading your attendance...</em></p>
+}
+else
+{
+    <p>
+        <strong>@mine.Status.FullName</strong>, @mine.Status.Department
+    </p>
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+        @if (mine.Status.ClockedInSinceUtc is { } since)
+        {
+            <span><span class="badge text-bg-success">Clocked in</span> since @since.ToLocalTime().ToString("t")</span>
+            <button class="btn btn-outline-danger" @onclick="ClockOutAsync">Clock out</button>
+        }
+        else
+        {
+            <span class="badge text-bg-secondary">Not clocked in</span>
+            <button class="btn btn-primary" @onclick="ClockInAsync">Clock in</button>
+        }
+    </div>
+
+    <h2 class="h5">Latest records</h2>
+
+    @if (mine.RecentRecords.Count == 0)
+    {
+        <p><em>You have no records yet.</em></p>
+    }
+    else
+    {
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Clocked in</th>
+                    <th scope="col">Clocked out</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var record in mine.RecentRecords)
+                {
+                    <tr>
+                        <td>@record.ClockInUtc.ToLocalTime().ToString("g")</td>
+                        <td>
+                            @if (record.ClockOutUtc is { } clockOut)
+                            {
+                                @clockOut.ToLocalTime().ToString("g")
+                            }
+                            else
+                            {
+                                <em>Still clocked in</em>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private MyAttendance? mine;
+    private bool loadFailed;
+    private string? message;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            mine = await AttendanceApi.GetMineAsync();
+            loadFailed = mine is null;
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+        }
+    }
+
+    private Task ClockInAsync() => RunAsync(AttendanceApi.ClockInMyselfAsync);
+
+    private Task ClockOutAsync() => RunAsync(AttendanceApi.ClockOutMyselfAsync);
+
+    // A refusal usually means the status changed somewhere else, so the page is reloaded either way.
+    private async Task RunAsync(Func<CancellationToken, Task<ClockResult>> action)
+    {
+        try
+        {
+            var result = await action(CancellationToken.None);
+            message = result.Succeeded ? null : result.Message;
+        }
+        catch (HttpRequestException)
+        {
+            message = "The change could not be saved. Check that the attendance API is running, then try again.";
+        }
+
+        await LoadAsync();
+    }
+}

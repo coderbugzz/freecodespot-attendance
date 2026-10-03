@@ -29,6 +29,14 @@ public sealed class EfAttendanceRepository(AttendanceDbContext db) : IAttendance
                 record => record.EmployeeId == employeeId && record.ClockOutUtc == null,
                 cancellationToken);
 
+    public async Task<IReadOnlyList<AttendanceRecord>> GetRecentRecordsAsync(int employeeId, int count, CancellationToken cancellationToken = default) =>
+        await db.AttendanceRecords
+            .AsNoTracking()
+            .Where(record => record.EmployeeId == employeeId)
+            .OrderByDescending(record => record.ClockInUtc)
+            .Take(count)
+            .ToListAsync(cancellationToken);
+
     public async Task<AttendanceRecord?> TryAddAsync(AttendanceRecord record, CancellationToken cancellationToken = default)
     {
         db.AttendanceRecords.Add(record);

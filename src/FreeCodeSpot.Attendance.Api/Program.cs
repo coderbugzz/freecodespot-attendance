@@ -32,7 +32,10 @@ builder.Services.AddIdentityCore<IdentityUser>()
 
 // Authorization: a named policy per rule, so endpoints say what they need.
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(Policies.ManagerOnly, policy => policy.RequireRole(Roles.Manager));
+    .AddPolicy(Policies.ManagerOnly, policy => policy.RequireRole(Roles.Manager))
+    .AddPolicy(Policies.HasEmployeeRecord, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(AttendanceClaims.EmployeeId));
 
 builder.Services.Configure<SeedUsersOptions>(builder.Configuration.GetSection(SeedUsersOptions.SectionName));
 
@@ -52,6 +55,7 @@ app.UseAuthorization();
 app.MapAuthEndpoints();
 app.MapEmployeeEndpoints();
 app.MapAttendanceEndpoints();
+app.MapMyAttendanceEndpoints();
 
 app.Run();
 

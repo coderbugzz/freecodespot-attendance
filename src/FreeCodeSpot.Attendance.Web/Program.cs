@@ -1,4 +1,5 @@
 using FreeCodeSpot.Attendance.Web.Components;
+using FreeCodeSpot.Attendance.Web.Security;
 using FreeCodeSpot.Attendance.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -17,7 +18,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.AccessDeniedPath = "/access-denied";
         options.SlidingExpiration = false;
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AppPolicies.HasEmployeeRecord, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireClaim(SignedInUser.EmployeeIdClaim));
+});
 builder.Services.AddCascadingAuthenticationState();
 
 var apiBaseUrl = builder.Configuration["AttendanceApi:BaseUrl"]

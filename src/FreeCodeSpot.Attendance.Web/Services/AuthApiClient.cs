@@ -32,10 +32,10 @@ public sealed class AuthApiClient(HttpClient httpClient)
         var me = await meResponse.Content.ReadFromJsonAsync<MeResponse>(cancellationToken)
             ?? throw new InvalidOperationException("The API returned an empty profile.");
 
-        return new SignedInUser(me.Email, me.Roles, token.AccessToken, TimeSpan.FromSeconds(token.ExpiresIn));
+        return new SignedInUser(me.Email, me.Roles, me.EmployeeId, token.AccessToken, TimeSpan.FromSeconds(token.ExpiresIn));
     }
 
     private sealed record TokenResponse(string AccessToken, long ExpiresIn);
 
-    private sealed record MeResponse(string Email, string[] Roles);
+    private sealed record MeResponse(string Email, string[] Roles, int? EmployeeId);
 }

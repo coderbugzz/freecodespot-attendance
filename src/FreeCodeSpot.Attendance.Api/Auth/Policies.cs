@@ -4,4 +4,5 @@ namespace FreeCodeSpot.Attendance.Api.Auth;
 public static class Policies
 {
     public const string ManagerOnly = "ManagerOnly";
+    public const string HasEmployeeRecord = "HasEmployeeRecord";
 }

@@ -50,6 +50,13 @@ public class AttendanceServiceTests
         public Task<AttendanceRecord?> GetOpenRecordAsync(int employeeId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Records.FirstOrDefault(record => record.EmployeeId == employeeId && record.IsOpen));
 
+        public Task<IReadOnlyList<AttendanceRecord>> GetRecentRecordsAsync(int employeeId, int count, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AttendanceRecord>>(Records
+                .Where(record => record.EmployeeId == employeeId)
+                .OrderByDescending(record => record.ClockInUtc)
+                .Take(count)
+                .ToList());
+
         public Task<AttendanceRecord?> TryAddAsync(AttendanceRecord record, CancellationToken cancellationToken = default)
         {
             if (RefuseInserts)
@@ -234,5 +241,59 @@ public class AttendanceServiceTests
         var status = await CreateService(Anna).GetStatusAsync();
 
         Assert.Null(status.Single().ClockedInSinceUtc);
+    }
+
+    [Fact]
+    public async Task GetMyAttendance_ShowsOnlyTheRecordsOfThatEmployee()
+    {
+        store.Records.Add(new AttendanceRecord(1, Anna.Id, Morning, Morning.AddHours(8)));
+        store.Records.Add(new AttendanceRecord(2, Marco.Id, Morning, Morning.AddHours(7)));
+
+        var mine = await CreateService(Anna, Marco).GetMyAttendanceAsync(Anna.Id);
+
+        Assert.Equal("Anna Cruz", mine!.Status.FullName);
+        Assert.Equal([Anna.Id], mine.RecentRecords.Select(record => record.EmployeeId));
+    }
+
+    [Fact]
+    public async Task GetMyAttendance_ShowsTheClockInTimeWhenClockedIn()
+    {
+        store.Records.Add(new AttendanceRecord(1, Anna.Id, Morning));
+
+        var mine = await CreateService(Anna).GetMyAttendanceAsync(Anna.Id);
+
+        Assert.Equal(Morning, mine!.Status.ClockedInSinceUtc);
+    }
+
+    [Fact]
+    public async Task GetMyAttendance_IsNotClockedInWhenEveryRecordIsClosed()
+    {
+        store.Records.Add(new AttendanceRecord(1, Anna.Id, Morning, Morning.AddHours(8)));
+
+        var mine = await CreateService(Anna).GetMyAttendanceAsync(Anna.Id);
+
+        Assert.Null(mine!.Status.ClockedInSinceUtc);
+        Assert.Single(mine.RecentRecords);
+    }
+
+    [Fact]
+    public async Task GetMyAttendance_ReturnsTheLatestRecordsFirstAndNoMoreThanAsked()
+    {
+        for (var day = 0; day < 4; day++)
+        {
+            store.Records.Add(new AttendanceRecord(day + 1, Anna.Id, Morning.AddDays(day), Morning.AddDays(day).AddHours(8)));
+        }
+
+        var mine = await CreateService(Anna).GetMyAttendanceAsync(Anna.Id, recentCount: 3);
+
+        Assert.Equal([Morning.AddDays(3), Morning.AddDays(2), Morning.AddDays(1)], mine!.RecentRecords.Select(record => record.ClockInUtc));
+    }
+
+    [Fact]
+    public async Task GetMyAttendance_ReturnsNullForAnUnknownEmployee()
+    {
+        var mine = await CreateService(Anna).GetMyAttendanceAsync(99);
+
+        Assert.Null(mine);
     }
 }

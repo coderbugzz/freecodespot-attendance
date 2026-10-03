@@ -6,7 +6,7 @@ Each published article corresponds to an immutable Git tag `article-NNN`. Check 
 
 ## What is here
 
-An ASP.NET Core minimal API that manages an employee roster and their clock-ins in SQL Server, and a Blazor Web App to add, edit, deactivate and reactivate employees and to clock them in and out. Employees are never deleted. Users sign in with an email and a password, and only managers can open the Employees pages or call the employee routes.
+An ASP.NET Core minimal API that manages an employee roster and their clock-ins in SQL Server, and a Blazor Web App to add, edit, deactivate and reactivate employees and to clock them in and out. Employees are never deleted. Users sign in with an email and a password. Managers can open the Employees pages and the Clock in and out page, and employees clock themselves in and out on a My attendance page.
 
 ```
 src/FreeCodeSpot.Attendance.Domain           Employee record (with IsActive), AttendanceRecord
@@ -75,14 +75,16 @@ Open https://localhost:7098/employees to manage the roster. The Web app reads th
 
 Every page needs a signed-in user. The API owns the users and roles, in the same database as the employees. In Development it creates two demo accounts on startup: `manager@attendance.local` (role Manager) and `employee@attendance.local` (role Employee). Both use the password in `SeedUsers:Password` in `src/FreeCodeSpot.Attendance.Api/appsettings.Development.json`. That file is for development only.
 
-Only managers can open the Employees and Clock in and out pages or call `/api/employees` and `/api/attendance`. An employee who signs in sees the home page and an access-denied page if they try the roster.
+A user can be linked to one employee record. The link is an `employee_id` claim on the user, so it travels in the token. The seeder links the demo manager to Regie Baquero and the demo employee to Anna Cruz, through `SeedUsers:ManagerRosterEmail` and `SeedUsers:EmployeeRosterEmail`. There is no screen for linking users yet.
+
+Only managers can open the Employees and Clock in and out pages or call `/api/employees` and `/api/attendance`. A linked user can open My attendance and call `/api/attendance/me`, which only ever uses their own employee. A user with no link gets 403 there.
 
 ## Endpoints
 
 | Method | Route | Returns |
 |---|---|---|
 | POST | `/auth/login` | 200 with a bearer token, or 401; open to everyone |
-| GET | `/auth/me` | the signed-in email and roles, or 401 |
+| GET | `/auth/me` | the signed-in email, roles and linked employee id (or null), or 401 |
 | GET | `/api/employees` | active employees ordered by name; `?includeInactive=true` adds inactive ones |
 | GET | `/api/employees/{id}` | one employee (active or not), or 404 |
 | POST | `/api/employees` | 201 with the new employee, or 400 with field errors |
@@ -92,8 +94,11 @@ Only managers can open the Employees and Clock in and out pages or call `/api/em
 | GET | `/api/attendance` | the active employees with the time they clocked in, or null when they are not clocked in |
 | POST | `/api/attendance/{employeeId}/clock-in` | 200 with the open record, 409 if already clocked in or inactive, or 404 |
 | POST | `/api/attendance/{employeeId}/clock-out` | 200 with the closed record, 409 if not clocked in, or 404 |
+| GET | `/api/attendance/me` | the signed-in user's own status and latest five records, or 403 without a linked employee |
+| POST | `/api/attendance/me/clock-in` | like clock-in, for the linked employee only |
+| POST | `/api/attendance/me/clock-out` | like clock-out, for the linked employee only |
 
-Every `/api/employees` and `/api/attendance` route needs a Manager token: 401 without one, 403 for an Employee. Times are stored and returned in UTC.
+Every `/api/employees` and `/api/attendance` route needs a Manager token: 401 without one, 403 for an Employee. The `/me` routes need a token with an `employee_id` claim instead. Times are stored and returned in UTC.
 
 ## Articles
 
@@ -104,3 +109,4 @@ Every `/api/employees` and `/api/attendance` route needs a Manager token: 401 wi
 | `article-003` | Employee management: add, edit, deactivate and reactivate, validation, async repository |
 | `article-004` | Authentication and roles: ASP.NET Core Identity, bearer-token login, Manager and Employee roles, protected pages and API |
 | `article-005` | Clock in and clock out: attendance records, the clocking rules, and a manager page |
+| `article-006` | Employees clock themselves in: linking a user to an employee, the My attendance page and routes |

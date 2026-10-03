@@ -13,6 +13,8 @@ public sealed class AttendanceService(
     IEmployeeRepository employees,
     TimeProvider timeProvider)
 {
+    public const int DefaultRecentCount = 5;
+
     /// <summary>
     /// Returns the active employees ordered by name, each with their clock-in
     /// time when they are clocked in. An employee who was deactivated while
@@ -34,6 +36,30 @@ public sealed class AttendanceService(
                 employee.Department,
                 clockedInSince.TryGetValue(employee.Id, out var since) ? since : null))
             .ToList();
+    }
+
+    /// <summary>
+    /// Returns the status and latest records of one employee, or null when the
+    /// employee does not exist. The caller decides which employee: the API takes
+    /// the id from the signed-in user, never from the request.
+    /// </summary>
+    public async Task<MyAttendance?> GetMyAttendanceAsync(
+        int employeeId,
+        int recentCount = DefaultRecentCount,
+        CancellationToken cancellationToken = default)
+    {
+        var employee = await employees.GetByIdAsync(employeeId, cancellationToken);
+        if (employee is null)
+        {
+            return null;
+        }
+
+        var open = await attendance.GetOpenRecordAsync(employeeId, cancellationToken);
+        var recent = await attendance.GetRecentRecordsAsync(employeeId, recentCount, cancellationToken);
+
+        return new MyAttendance(
+            new EmployeeAttendanceStatus(employee.Id, employee.FullName, employee.Department, open?.ClockInUtc),
+            recent);
     }
 
     public async Task<AttendanceResult> ClockInAsync(int employeeId, CancellationToken cancellationToken = default)

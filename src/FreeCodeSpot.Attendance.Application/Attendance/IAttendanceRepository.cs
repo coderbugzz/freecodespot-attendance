@@ -13,6 +13,9 @@ public interface IAttendanceRepository
 
     Task<AttendanceRecord?> GetOpenRecordAsync(int employeeId, CancellationToken cancellationToken = default);
 
+    /// <summary>The latest records of one employee, newest first, open or closed.</summary>
+    Task<IReadOnlyList<AttendanceRecord>> GetRecentRecordsAsync(int employeeId, int count, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Saves a new record. Returns null when the employee already has an open
     /// record, which the database refuses even if two requests arrive together.

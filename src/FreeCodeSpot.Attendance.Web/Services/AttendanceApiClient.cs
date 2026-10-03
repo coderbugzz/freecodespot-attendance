@@ -18,6 +18,20 @@ public sealed class AttendanceApiClient(HttpClient httpClient, AuthenticationSta
         return status ?? [];
     }
 
+    /// <summary>The signed-in user's own status and latest records. The API knows who they are from the token.</summary>
+    public async Task<MyAttendance?> GetMineAsync(CancellationToken cancellationToken = default)
+    {
+        await httpClient.UseSignedInUserAsync(authenticationStateProvider);
+
+        return await httpClient.GetFromJsonAsync<MyAttendance>("api/attendance/me", cancellationToken);
+    }
+
+    public Task<ClockResult> ClockInMyselfAsync(CancellationToken cancellationToken = default) =>
+        PostAsync("api/attendance/me/clock-in", cancellationToken);
+
+    public Task<ClockResult> ClockOutMyselfAsync(CancellationToken cancellationToken = default) =>
+        PostAsync("api/attendance/me/clock-out", cancellationToken);
+
     public Task<ClockResult> ClockInAsync(int employeeId, CancellationToken cancellationToken = default) =>
         PostAsync($"api/attendance/{employeeId}/clock-in", cancellationToken);
 

@@ -37,7 +37,7 @@ public static class AttendanceEndpoints
         return app;
     }
 
-    private static IResult ToResult(AttendanceResult result) =>
+    internal static IResult ToResult(AttendanceResult result) =>
         result.Outcome switch
         {
             AttendanceOutcome.Success => Results.Ok(result.Record),
