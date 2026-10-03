@@ -22,6 +22,33 @@ namespace FreeCodeSpot.Attendance.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("FreeCodeSpot.Attendance.Domain.Attendance.AttendanceRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("ClockInUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ClockOutUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AttendanceRecords_OneOpenRecordPerEmployee")
+                        .HasFilter("[ClockOutUtc] IS NULL");
+
+                    b.ToTable("AttendanceRecords", (string)null);
+                });
+
             modelBuilder.Entity("FreeCodeSpot.Attendance.Domain.Employees.Employee", b =>
                 {
                     b.Property<int>("Id")
@@ -294,6 +321,15 @@ namespace FreeCodeSpot.Attendance.Infrastructure.Persistence.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("FreeCodeSpot.Attendance.Domain.Attendance.AttendanceRecord", b =>
+                {
+                    b.HasOne("FreeCodeSpot.Attendance.Domain.Employees.Employee", null)
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

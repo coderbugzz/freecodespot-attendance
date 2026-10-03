@@ -1,0 +1,116 @@
+@page "/attendance"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = AppRoles.Manager)]
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject AttendanceApiClient AttendanceApi
+
+<PageTitle>Clock in and clock out</PageTitle>
+
+<h1>Clock in and clock out</h1>
+
+<p>Clock employees in when they arrive and out when they leave. Times are shown in the time zone of the server.</p>
+
+@if (message is not null)
+{
+    <div class="alert alert-warning" role="alert">@message</div>
+}
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        The attendance list could not be loaded. Check that the attendance API is running, then reload the page.
+    </div>
+}
+else if (employees is null)
+{
+    <p><em>Loading the employees...</em></p>
+}
+else if (employees.Count == 0)
+{
+    <p><em>There are no active employees.</em></p>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Department</th>
+                <th scope="col">Status</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var employee in employees)
+            {
+                <tr>
+                    <td>@employee.FullName</td>
+                    <td>@employee.Department</td>
+                    <td>
+                        @if (employee.ClockedInSinceUtc is { } since)
+                        {
+                            <span class="badge text-bg-success">Clocked in</span>
+                            <span class="ms-1">since @since.ToLocalTime().ToString("t")</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">Not clocked in</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (employee.ClockedInSinceUtc is null)
+                        {
+                            <button class="btn btn-sm btn-primary" @onclick="() => ClockInAsync(employee.EmployeeId)">Clock in</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ClockOutAsync(employee.EmployeeId)">Clock out</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private IReadOnlyList<EmployeeAttendanceStatus>? employees;
+    private bool loadFailed;
+    private string? message;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            employees = await AttendanceApi.GetStatusAsync();
+            loadFailed = false;
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+        }
+    }
+
+    private Task ClockInAsync(int employeeId) => RunAsync(() => AttendanceApi.ClockInAsync(employeeId));
+
+    private Task ClockOutAsync(int employeeId) => RunAsync(() => AttendanceApi.ClockOutAsync(employeeId));
+
+    // A refusal usually means someone else changed the status first, so the list is reloaded either way.
+    private async Task RunAsync(Func<Task<ClockResult>> action)
+    {
+        try
+        {
+            var result = await action();
+            message = result.Succeeded ? null : result.Message;
+        }
+        catch (HttpRequestException)
+        {
+            message = "The change could not be saved. Check that the attendance API is running, then try again.";
+        }
+
+        await LoadAsync();
+    }
+}

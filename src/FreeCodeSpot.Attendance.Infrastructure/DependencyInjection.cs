@@ -1,4 +1,6 @@
+using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Employees;
+using FreeCodeSpot.Attendance.Infrastructure.Attendance;
 using FreeCodeSpot.Attendance.Infrastructure.Employees;
 using FreeCodeSpot.Attendance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +22,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
 
         services.AddScoped<IEmployeeRepository, EfEmployeeRepository>();
+        services.AddScoped<IAttendanceRepository, EfAttendanceRepository>();
         return services;
     }
 }

@@ -29,6 +29,11 @@ builder.Services.AddHttpClient<AuthApiClient>(client =>
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 
+builder.Services.AddHttpClient<AttendanceApiClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
+
 builder.Services.AddHttpClient<EmployeeApiClient>(client =>
 {
     client.BaseAddress = new Uri(apiBaseUrl);

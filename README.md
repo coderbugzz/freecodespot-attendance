@@ -6,19 +6,19 @@ Each published article corresponds to an immutable Git tag `article-NNN`. Check 
 
 ## What is here
 
-An ASP.NET Core minimal API that manages an employee roster in SQL Server, and a Blazor Web App to add, edit, deactivate and reactivate employees. Employees are never deleted. Users sign in with an email and a password, and only managers can open the Employees pages or call the employee routes.
+An ASP.NET Core minimal API that manages an employee roster and their clock-ins in SQL Server, and a Blazor Web App to add, edit, deactivate and reactivate employees and to clock them in and out. Employees are never deleted. Users sign in with an email and a password, and only managers can open the Employees pages or call the employee routes.
 
 ```
-src/FreeCodeSpot.Attendance.Domain           Employee record (with IsActive)
-src/FreeCodeSpot.Attendance.Application      EmployeeService (the roster rules), IEmployeeRepository, EmployeeDetails, EmployeeResult, Roles
-src/FreeCodeSpot.Attendance.Infrastructure   AttendanceDbContext (Identity and employees), migrations, EfEmployeeRepository, IdentitySeeder, AddInfrastructure()
+src/FreeCodeSpot.Attendance.Domain           Employee record (with IsActive), AttendanceRecord
+src/FreeCodeSpot.Attendance.Application      EmployeeService (the roster rules), IEmployeeRepository, EmployeeDetails, EmployeeResult, Roles, AttendanceService (the clock-in and clock-out rules), IAttendanceRepository
+src/FreeCodeSpot.Attendance.Infrastructure   AttendanceDbContext (Identity and employees), migrations, EfEmployeeRepository, EfAttendanceRepository, IdentitySeeder, AddInfrastructure()
 src/FreeCodeSpot.Attendance.Api              minimal API: bearer-token login and the protected roster routes, see Endpoints below
-src/FreeCodeSpot.Attendance.Web              Blazor Web App (interactive server): login, role-aware navigation, Employees, Add and Edit pages
+src/FreeCodeSpot.Attendance.Web              Blazor Web App (interactive server): login, role-aware navigation, Employees, Add and Edit pages, Clock in and out page
 tests/FreeCodeSpot.Attendance.UnitTests      xUnit tests for EmployeeService
 tests/FreeCodeSpot.Attendance.IntegrationTests   API and repository tests against a SQL Server test database
 ```
 
-The roster is stored in SQL Server through Entity Framework Core. The first migration creates the `Employees` table and seeds five employees. The second adds the `IsActive` column, with existing employees set to active. The third adds the ASP.NET Core Identity tables for users and roles.
+The roster is stored in SQL Server through Entity Framework Core. The first migration creates the `Employees` table and seeds five employees. The second adds the `IsActive` column, with existing employees set to active. The third adds the ASP.NET Core Identity tables for users and roles. The fourth adds the `AttendanceRecords` table, with a unique index that allows only one open record per employee.
 
 ## Requirements
 
@@ -75,7 +75,7 @@ Open https://localhost:7098/employees to manage the roster. The Web app reads th
 
 Every page needs a signed-in user. The API owns the users and roles, in the same database as the employees. In Development it creates two demo accounts on startup: `manager@attendance.local` (role Manager) and `employee@attendance.local` (role Employee). Both use the password in `SeedUsers:Password` in `src/FreeCodeSpot.Attendance.Api/appsettings.Development.json`. That file is for development only.
 
-Only managers can open the Employees pages or call `/api/employees`. An employee who signs in sees the home page and an access-denied page if they try the roster.
+Only managers can open the Employees and Clock in and out pages or call `/api/employees` and `/api/attendance`. An employee who signs in sees the home page and an access-denied page if they try the roster.
 
 ## Endpoints
 
@@ -89,8 +89,11 @@ Only managers can open the Employees pages or call `/api/employees`. An employee
 | PUT | `/api/employees/{id}` | 200 with the updated employee, 400, or 404 |
 | POST | `/api/employees/{id}/deactivate` | 204, or 404 |
 | POST | `/api/employees/{id}/activate` | 204, or 404 |
+| GET | `/api/attendance` | the active employees with the time they clocked in, or null when they are not clocked in |
+| POST | `/api/attendance/{employeeId}/clock-in` | 200 with the open record, 409 if already clocked in or inactive, or 404 |
+| POST | `/api/attendance/{employeeId}/clock-out` | 200 with the closed record, 409 if not clocked in, or 404 |
 
-Every `/api/employees` route needs a Manager token: 401 without one, 403 for an Employee.
+Every `/api/employees` and `/api/attendance` route needs a Manager token: 401 without one, 403 for an Employee. Times are stored and returned in UTC.
 
 ## Articles
 
@@ -100,3 +103,4 @@ Every `/api/employees` route needs a Manager token: 401 without one, 403 for an 
 | `article-002` | SQL Server with EF Core: DbContext, first migration, seeded roster |
 | `article-003` | Employee management: add, edit, deactivate and reactivate, validation, async repository |
 | `article-004` | Authentication and roles: ASP.NET Core Identity, bearer-token login, Manager and Employee roles, protected pages and API |
+| `article-005` | Clock in and clock out: attendance records, the clocking rules, and a manager page |

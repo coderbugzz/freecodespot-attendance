@@ -1,3 +1,4 @@
+using FreeCodeSpot.Attendance.Domain.Attendance;
 using FreeCodeSpot.Attendance.Domain.Employees;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -15,6 +16,8 @@ public sealed class AttendanceDbContext(DbContextOptions<AttendanceDbContext> op
     : IdentityDbContext<IdentityUser>(options)
 {
     public DbSet<Employee> Employees => Set<Employee>();
+
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

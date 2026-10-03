@@ -1,5 +1,6 @@
 using FreeCodeSpot.Attendance.Api.Auth;
 using FreeCodeSpot.Attendance.Api.Endpoints;
+using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Employees;
 using FreeCodeSpot.Attendance.Application.Security;
 using FreeCodeSpot.Attendance.Infrastructure;
@@ -16,6 +17,8 @@ var connectionString = builder.Configuration.GetConnectionString("AttendanceDb")
 
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<EmployeeService>();
+builder.Services.AddScoped<AttendanceService>();
+builder.Services.AddSingleton(TimeProvider.System);
 
 // Authentication: callers present a bearer token that /auth/login issued.
 builder.Services.AddAuthentication(IdentityConstants.BearerScheme)
@@ -48,6 +51,7 @@ app.UseAuthorization();
 
 app.MapAuthEndpoints();
 app.MapEmployeeEndpoints();
+app.MapAttendanceEndpoints();
 
 app.Run();
 

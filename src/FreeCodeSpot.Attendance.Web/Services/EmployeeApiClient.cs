@@ -1,8 +1,6 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FreeCodeSpot.Attendance.Web.Models;
-using FreeCodeSpot.Attendance.Web.Security;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace FreeCodeSpot.Attendance.Web.Services;
@@ -70,14 +68,7 @@ public sealed class EmployeeApiClient(
         return await ToSaveResultAsync(response, cancellationToken);
     }
 
-    private async Task UseSignedInUserAsync()
-    {
-        var state = await authenticationStateProvider.GetAuthenticationStateAsync();
-        var token = state.User.FindFirst(SignedInUser.AccessTokenClaim)?.Value;
-
-        httpClient.DefaultRequestHeaders.Authorization =
-            token is null ? null : new AuthenticationHeaderValue("Bearer", token);
-    }
+    private Task UseSignedInUserAsync() => httpClient.UseSignedInUserAsync(authenticationStateProvider);
 
     private static object ToRequest(EmployeeFormModel form) =>
         new { form.FullName, form.Department, form.Email };
