@@ -1,6 +1,7 @@
 @page "/reports"
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = AppRoles.Manager)]
+@using System.Globalization
 @using FreeCodeSpot.Attendance.Web.Models
 @using FreeCodeSpot.Attendance.Web.Services
 @inject ReportApiClient ReportApi
@@ -23,6 +24,12 @@
     <div class="col-auto">
         <button class="btn btn-primary" @onclick="LoadAsync">Show report</button>
     </div>
+    @if (report is not null)
+    {
+        <div class="col-auto">
+            <a class="btn btn-outline-primary" href="@ExportUrl" data-enhance-nav="false">Download Excel</a>
+        </div>
+    }
 </div>
 
 @if (message is not null)
@@ -137,6 +144,10 @@ else if (report is not null)
     private string? message;
     private bool loadFailed;
     private TimeZoneInfo zone = TimeZoneInfo.Local;
+
+    // The link downloads the report that is on the page, not what is typed in the date boxes.
+    private string ExportUrl =>
+        $"reports/export?from={report!.From.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}&to={report.To.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}";
 
     // Without dates, the API answers with the current month, and we show them in the inputs.
     protected override Task OnInitializedAsync() => LoadAsync();

@@ -1,4 +1,5 @@
 using FreeCodeSpot.Attendance.Api.Auth;
+using FreeCodeSpot.Attendance.Application;
 using FreeCodeSpot.Attendance.Application.Reports;
 
 namespace FreeCodeSpot.Attendance.Api.Endpoints;
@@ -19,6 +20,18 @@ public static class ReportEndpoints
                 ToResult(await reports.GetReportAsync(from, to, cancellationToken)))
             .WithName("GetAttendanceReport")
             .Produces<AttendanceReport>()
+            .ProducesValidationProblem();
+
+        // The same report as a real .xlsx file, with the records behind it.
+        group.MapGet("/export", async (DateOnly? from, DateOnly? to, ReportExportService export, CancellationToken cancellationToken) =>
+            {
+                var result = await export.ExportAsync(from, to, cancellationToken);
+                return result.Outcome == ReportOutcome.Success
+                    ? Results.File(result.Content!, ExcelFile.ContentType, result.FileName)
+                    : Results.ValidationProblem(result.Errors.ToDictionary());
+            })
+            .WithName("ExportAttendanceReport")
+            .Produces(StatusCodes.Status200OK, contentType: ExcelFile.ContentType)
             .ProducesValidationProblem();
 
         return app;

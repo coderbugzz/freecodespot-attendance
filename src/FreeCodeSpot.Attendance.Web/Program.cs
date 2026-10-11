@@ -50,6 +50,11 @@ builder.Services.AddHttpClient<ReportApiClient>(client =>
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 
+builder.Services.AddHttpClient<ExcelDownloadClient>(client =>
+{
+    client.BaseAddress = new Uri(apiBaseUrl);
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -72,6 +77,24 @@ app.MapPost("/logout", async (HttpContext context, [FromForm] string? returnUrl)
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.LocalRedirect("~/login");
 });
+
+// Downloads. A link in a page is a plain GET, so the Web app asks the API for the file with the
+// token of the signed-in user and passes it on. Only managers can use them.
+app.MapGet("/reports/export", async (DateOnly? from, DateOnly? to, HttpContext context, ExcelDownloadClient downloads, CancellationToken cancellationToken) =>
+    {
+        var token = context.User.FindFirst(SignedInUser.AccessTokenClaim)?.Value;
+        var file = await downloads.GetReportAsync(from, to, token, cancellationToken);
+        return file is null ? Results.NotFound() : Results.File(file.Content, file.ContentType, file.FileName);
+    })
+    .RequireAuthorization(policy => policy.RequireRole(AppRoles.Manager));
+
+app.MapGet("/employees/import/template", async (HttpContext context, ExcelDownloadClient downloads, CancellationToken cancellationToken) =>
+    {
+        var token = context.User.FindFirst(SignedInUser.AccessTokenClaim)?.Value;
+        var file = await downloads.GetEmployeeTemplateAsync(token, cancellationToken);
+        return file is null ? Results.NotFound() : Results.File(file.Content, file.ContentType, file.FileName);
+    })
+    .RequireAuthorization(policy => policy.RequireRole(AppRoles.Manager));
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

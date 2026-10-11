@@ -1,5 +1,7 @@
 using FreeCodeSpot.Attendance.Api.Auth;
+using FreeCodeSpot.Attendance.Application;
 using FreeCodeSpot.Attendance.Application.Employees;
+using FreeCodeSpot.Attendance.Application.Employees.Import;
 using FreeCodeSpot.Attendance.Domain.Employees;
 
 namespace FreeCodeSpot.Attendance.Api.Endpoints;
@@ -66,8 +68,55 @@ public static class EmployeeEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
 
+        // Import from Excel. The preview checks every row and saves nothing. The import saves the
+        // rows that are fine. The routes read an upload, which has no antiforgery token, because
+        // the caller sends a bearer token and not a cookie.
+        group.MapGet("/import/template", (EmployeeImportService import) =>
+                Results.File(import.CreateTemplate(), ExcelFile.ContentType, "employee-import-template.xlsx"))
+            .WithName("GetEmployeeImportTemplate")
+            .Produces(StatusCodes.Status200OK, contentType: ExcelFile.ContentType);
+
+        group.MapPost("/import/preview", (IFormFile? file, EmployeeImportService import, CancellationToken cancellationToken) =>
+                RunImportAsync(file, save: false, import, cancellationToken))
+            .DisableAntiforgery()
+            .WithName("PreviewEmployeeImport")
+            .Produces<EmployeeImportReport>()
+            .ProducesValidationProblem();
+
+        group.MapPost("/import", (IFormFile? file, EmployeeImportService import, CancellationToken cancellationToken) =>
+                RunImportAsync(file, save: true, import, cancellationToken))
+            .DisableAntiforgery()
+            .WithName("ImportEmployees")
+            .Produces<EmployeeImportReport>()
+            .ProducesValidationProblem();
+
         return app;
     }
+
+    private static async Task<IResult> RunImportAsync(
+        IFormFile? file,
+        bool save,
+        EmployeeImportService import,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+            return FileProblem("Choose an .xlsx file to upload.");
+
+        if (file.Length > EmployeeImportService.MaxFileBytes)
+            return FileProblem("The file can be at most 1 MB.");
+
+        await using var stream = file.OpenReadStream();
+        var result = save
+            ? await import.ImportAsync(stream, cancellationToken)
+            : await import.PreviewAsync(stream, cancellationToken);
+
+        return result.Outcome == EmployeeImportOutcome.Success
+            ? Results.Ok(result.Report)
+            : FileProblem(result.Error!);
+    }
+
+    private static IResult FileProblem(string message) =>
+        Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = [message] });
 
     private static IResult ToErrorResult(EmployeeResult result) =>
         result.Outcome == EmployeeOutcome.NotFound

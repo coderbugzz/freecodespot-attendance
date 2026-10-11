@@ -1,0 +1,168 @@
+@page "/employees/import"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = AppRoles.Manager)]
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject EmployeeApiClient EmployeeApi
+
+<PageTitle>Import employees</PageTitle>
+
+<h1>Import employees</h1>
+
+<p>
+    Add new employees from an Excel file. Put one employee on each row, with the columns Full name, Department and Email.
+    The file can have up to 500 employees and can be at most 1 MB. Employees that exist already are not changed.
+</p>
+
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <a href="employees/import/template" data-enhance-nav="false" class="btn btn-outline-primary">Download the template</a>
+    <a href="employees" class="btn btn-link">Back to employees</a>
+</div>
+
+<div class="mb-3">
+    <label for="file" class="form-label">Excel file (.xlsx)</label>
+    <InputFile id="file" class="form-control" accept=".xlsx" OnChange="ChooseAsync" disabled="@busy" />
+</div>
+
+@if (message is not null)
+{
+    <div class="alert alert-warning" role="alert">@message</div>
+}
+
+@if (failed)
+{
+    <div class="alert alert-danger" role="alert">
+        The file could not be sent. Check that the attendance API is running, then try again.
+    </div>
+}
+
+@if (report is not null)
+{
+    @if (report.Saved)
+    {
+        <div class="alert alert-success" role="alert">
+            Imported @report.ValidCount @(report.ValidCount == 1 ? "employee" : "employees").
+            @if (report.InvalidCount > 0)
+            {
+                <span>@report.InvalidCount @(report.InvalidCount == 1 ? "row was" : "rows were") skipped. Fix @(report.InvalidCount == 1 ? "it" : "them") in the file and upload it again.</span>
+            }
+        </div>
+    }
+    else
+    {
+        <p>
+            Checked @fileName: <strong>@report.ValidCount</strong> @(report.ValidCount == 1 ? "row is" : "rows are") ready to import and
+            <strong>@report.InvalidCount</strong> @(report.InvalidCount == 1 ? "has" : "have") a problem. Nothing is saved yet.
+        </p>
+
+        <button class="btn btn-primary mb-3" disabled="@(busy || report.ValidCount == 0)" @onclick="ImportAsync">
+            Import @report.ValidCount @(report.ValidCount == 1 ? "employee" : "employees")
+        </button>
+    }
+
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Row</th>
+                <th scope="col">Name</th>
+                <th scope="col">Department</th>
+                <th scope="col">Email</th>
+                <th scope="col">Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in report.Rows)
+            {
+                <tr>
+                    <td>@row.RowNumber</td>
+                    <td>@row.FullName</td>
+                    <td>@row.Department</td>
+                    <td>@row.Email</td>
+                    <td>
+                        @if (!row.IsValid)
+                        {
+                            <span class="badge text-bg-danger">Skipped</span>
+                            <ul class="mb-0 small">
+                                @foreach (var error in row.Errors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        }
+                        else if (report.Saved)
+                        {
+                            <span class="badge text-bg-success">Imported</span>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-secondary">Ready</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private const long MaxFileBytes = 1024 * 1024;
+
+    private string fileName = string.Empty;
+    private byte[]? file;
+    private EmployeeImportReport? report;
+    private string? message;
+    private bool failed;
+    private bool busy;
+
+    // Choosing a file checks it straight away. Nothing is saved until the manager clicks Import.
+    private async Task ChooseAsync(InputFileChangeEventArgs e)
+    {
+        report = null;
+        message = null;
+        file = null;
+
+        try
+        {
+            using var stream = new MemoryStream();
+            await e.File.OpenReadStream(MaxFileBytes).CopyToAsync(stream);
+            file = stream.ToArray();
+            fileName = e.File.Name;
+        }
+        catch (IOException)
+        {
+            // OpenReadStream refuses a file that is bigger than the limit.
+            message = "The file can be at most 1 MB.";
+            return;
+        }
+
+        await SendAsync(save: false);
+    }
+
+    private Task ImportAsync() => SendAsync(save: true);
+
+    private async Task SendAsync(bool save)
+    {
+        busy = true;
+        try
+        {
+            var response = save
+                ? await EmployeeApi.ImportAsync(file!)
+                : await EmployeeApi.PreviewImportAsync(file!);
+
+            message = response.Message;
+            failed = false;
+            if (response.Report is { } result)
+            {
+                report = result;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            failed = true;
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

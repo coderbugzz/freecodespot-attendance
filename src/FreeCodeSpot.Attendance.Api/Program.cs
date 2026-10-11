@@ -2,6 +2,7 @@ using FreeCodeSpot.Attendance.Api.Auth;
 using FreeCodeSpot.Attendance.Api.Endpoints;
 using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Employees;
+using FreeCodeSpot.Attendance.Application.Employees.Import;
 using FreeCodeSpot.Attendance.Application.Reports;
 using FreeCodeSpot.Attendance.Application.Security;
 using FreeCodeSpot.Attendance.Application.Timesheets;
@@ -38,6 +39,8 @@ if (reportOptions.WorkingDays.Length == 0)
 
 builder.Services.AddSingleton(reportOptions);
 builder.Services.AddScoped<ReportService>();
+builder.Services.AddScoped<ReportExportService>();
+builder.Services.AddScoped<EmployeeImportService>();
 
 // Authentication: callers present a bearer token that /auth/login issued.
 builder.Services.AddAuthentication(IdentityConstants.BearerScheme)

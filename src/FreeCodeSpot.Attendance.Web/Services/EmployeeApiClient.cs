@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FreeCodeSpot.Attendance.Web.Models;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -60,6 +61,40 @@ public sealed class EmployeeApiClient(
 
     public Task<SaveResult> ActivateAsync(int id, CancellationToken cancellationToken = default) =>
         PostActionAsync($"api/employees/{id}/activate", cancellationToken);
+
+    /// <summary>Checks the rows of a sheet and saves nothing.</summary>
+    public Task<ImportResponse> PreviewImportAsync(byte[] file, CancellationToken cancellationToken = default) =>
+        UploadAsync("api/employees/import/preview", file, cancellationToken);
+
+    /// <summary>Saves the rows of a sheet that are fine, and skips the others.</summary>
+    public Task<ImportResponse> ImportAsync(byte[] file, CancellationToken cancellationToken = default) =>
+        UploadAsync("api/employees/import", file, cancellationToken);
+
+    private async Task<ImportResponse> UploadAsync(string route, byte[] file, CancellationToken cancellationToken)
+    {
+        await UseSignedInUserAsync();
+
+        using var content = new MultipartFormDataContent();
+        var part = new ByteArrayContent(file);
+        part.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+        // The API does not need the name of the file the user chose. A name with a quote or a
+        // line break in it would break the header, so the upload always has the same name.
+        content.Add(part, "file", "employees.xlsx");
+
+        using var response = await httpClient.PostAsync(route, content, cancellationToken);
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            // The file cannot be used at all. The API says why, and the page shows the message.
+            var problem = await response.Content.ReadFromJsonAsync<ValidationProblemResponse>(cancellationToken);
+            return ImportResponse.Refused(string.Join(" ", problem?.Errors.Values.SelectMany(errors => errors) ?? []));
+        }
+
+        response.EnsureSuccessStatusCode();
+        var report = await response.Content.ReadFromJsonAsync<EmployeeImportReport>(cancellationToken)
+            ?? throw new InvalidOperationException("The API returned an empty import report.");
+        return ImportResponse.Of(report);
+    }
 
     private async Task<SaveResult> PostActionAsync(string route, CancellationToken cancellationToken)
     {

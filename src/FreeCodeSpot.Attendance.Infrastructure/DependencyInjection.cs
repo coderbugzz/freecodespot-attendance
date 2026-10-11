@@ -1,8 +1,11 @@
 using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Employees;
+using FreeCodeSpot.Attendance.Application.Employees.Import;
+using FreeCodeSpot.Attendance.Application.Reports;
 using FreeCodeSpot.Attendance.Application.Timesheets;
 using FreeCodeSpot.Attendance.Infrastructure.Attendance;
 using FreeCodeSpot.Attendance.Infrastructure.Employees;
+using FreeCodeSpot.Attendance.Infrastructure.Excel;
 using FreeCodeSpot.Attendance.Infrastructure.Persistence;
 using FreeCodeSpot.Attendance.Infrastructure.Timesheets;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +29,8 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeRepository, EfEmployeeRepository>();
         services.AddScoped<IAttendanceRepository, EfAttendanceRepository>();
         services.AddScoped<ITimesheetRepository, EfTimesheetRepository>();
+        services.AddScoped<IReportWorkbook, ExcelReportWorkbook>();
+        services.AddSingleton<IEmployeeSpreadsheet, ExcelEmployeeSpreadsheet>();
         return services;
     }
 }

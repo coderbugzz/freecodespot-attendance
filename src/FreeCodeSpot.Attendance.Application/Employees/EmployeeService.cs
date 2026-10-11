@@ -48,6 +48,15 @@ public sealed class EmployeeService(IEmployeeRepository repository)
         return EmployeeResult.Success(employee);
     }
 
+    /// <summary>
+    /// Checks the rules for a new employee and saves nothing. The result is keyed by field name,
+    /// and is empty when the details are fine. The import uses it to check a row before it saves.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, string[]>> CheckNewAsync(
+        EmployeeDetails details,
+        CancellationToken cancellationToken = default) =>
+        (await ValidateAsync(details, exceptId: null, cancellationToken)).Errors;
+
     public async Task<EmployeeResult> UpdateAsync(int id, EmployeeDetails details, CancellationToken cancellationToken = default)
     {
         var existing = await repository.GetByIdAsync(id, cancellationToken);
