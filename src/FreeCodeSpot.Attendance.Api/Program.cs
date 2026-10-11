@@ -2,6 +2,7 @@ using FreeCodeSpot.Attendance.Api.Auth;
 using FreeCodeSpot.Attendance.Api.Endpoints;
 using FreeCodeSpot.Attendance.Application.Attendance;
 using FreeCodeSpot.Attendance.Application.Employees;
+using FreeCodeSpot.Attendance.Application.Reports;
 using FreeCodeSpot.Attendance.Application.Security;
 using FreeCodeSpot.Attendance.Application.Timesheets;
 using FreeCodeSpot.Attendance.Infrastructure;
@@ -27,6 +28,16 @@ builder.Services.AddSingleton(string.IsNullOrWhiteSpace(timeZoneId)
     ? TimeZoneInfo.Local
     : TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
 builder.Services.AddScoped<TimesheetService>();
+
+// The rules of the reports: when work starts, the grace period and the working days.
+var reportOptions = builder.Configuration.GetSection("Attendance").Get<ReportOptions>() ?? new ReportOptions();
+if (reportOptions.WorkingDays.Length == 0)
+{
+    reportOptions.WorkingDays = ReportOptions.DefaultWorkingDays;
+}
+
+builder.Services.AddSingleton(reportOptions);
+builder.Services.AddScoped<ReportService>();
 
 // Authentication: callers present a bearer token that /auth/login issued.
 builder.Services.AddAuthentication(IdentityConstants.BearerScheme)
@@ -64,6 +75,7 @@ app.MapAuthEndpoints();
 app.MapEmployeeEndpoints();
 app.MapAttendanceEndpoints();
 app.MapMyAttendanceEndpoints();
+app.MapReportEndpoints();
 
 app.Run();
 

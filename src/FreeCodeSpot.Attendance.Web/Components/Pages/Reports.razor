@@ -1,0 +1,180 @@
+@page "/reports"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = AppRoles.Manager)]
+@using FreeCodeSpot.Attendance.Web.Models
+@using FreeCodeSpot.Attendance.Web.Services
+@inject ReportApiClient ReportApi
+
+<PageTitle>Reports</PageTitle>
+
+<h1>Reports</h1>
+
+<p>The hours, the late arrivals and the absences between two dates. A range can be at most 31 days, so one month fits.</p>
+
+<div class="row g-3 align-items-end mb-3">
+    <div class="col-auto">
+        <label for="from" class="form-label">From</label>
+        <input id="from" type="date" class="form-control" @bind="from" @bind:format="yyyy-MM-dd" />
+    </div>
+    <div class="col-auto">
+        <label for="to" class="form-label">To</label>
+        <input id="to" type="date" class="form-control" @bind="to" @bind:format="yyyy-MM-dd" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" @onclick="LoadAsync">Show report</button>
+    </div>
+</div>
+
+@if (message is not null)
+{
+    <div class="alert alert-warning" role="alert">@message</div>
+}
+
+@if (loadFailed)
+{
+    <div class="alert alert-danger" role="alert">
+        The report could not be loaded. Check that the attendance API is running, then try again.
+    </div>
+}
+else if (report is not null)
+{
+    <h2 class="h5 mt-4">Summary</h2>
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th scope="col">Employee</th>
+                <th scope="col">Department</th>
+                <th scope="col" class="text-end">Days worked</th>
+                <th scope="col" class="text-end">Hours worked</th>
+                <th scope="col" class="text-end">Late</th>
+                <th scope="col" class="text-end">Absent</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in report.Summary)
+            {
+                <tr>
+                    <td>@row.FullName</td>
+                    <td>@row.Department</td>
+                    <td class="text-end">@row.DaysWorked</td>
+                    <td class="text-end text-nowrap">@row.TotalWorked.ToHoursAndMinutes()</td>
+                    <td class="text-end">@row.LateCount</td>
+                    <td class="text-end">@row.AbsentCount</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h2 class="h5 mt-4">Late arrivals</h2>
+    <p class="text-body-secondary">
+        Work starts at @report.WorkStart.ToString("t"), with @report.GraceMinutes minutes of grace. Only the first clock-in of a working day counts.
+    </p>
+    @if (report.LateArrivals.Count == 0)
+    {
+        <p><em>Nobody was late.</em></p>
+    }
+    else
+    {
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Employee</th>
+                    <th scope="col">Clocked in</th>
+                    <th scope="col" class="text-end">Late by</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var late in report.LateArrivals)
+                {
+                    <tr>
+                        <td class="text-nowrap">@late.Date.ToString("ddd d MMM")</td>
+                        <td>@late.FullName</td>
+                        <td>@InZone(late.ClockInUtc).ToString("t")</td>
+                        <td class="text-end text-nowrap">@late.Late.ToHoursAndMinutes()</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2 class="h5 mt-4">Absences</h2>
+    <p class="text-body-secondary">
+        Working days that are over, when an active employee has no record. Today is not counted.
+    </p>
+    @if (report.Absences.Count == 0)
+    {
+        <p><em>Nobody was absent.</em></p>
+    }
+    else
+    {
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th scope="col">Employee</th>
+                    <th scope="col">Department</th>
+                    <th scope="col">Days</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var absent in report.Absences)
+                {
+                    <tr>
+                        <td>@absent.FullName</td>
+                        <td>@absent.Department</td>
+                        <td>@string.Join(", ", absent.Dates.Select(date => date.ToString("ddd d MMM")))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private DateOnly? from;
+    private DateOnly? to;
+    private AttendanceReport? report;
+    private string? message;
+    private bool loadFailed;
+    private TimeZoneInfo zone = TimeZoneInfo.Local;
+
+    // Without dates, the API answers with the current month, and we show them in the inputs.
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var response = await ReportApi.GetReportAsync(from, to);
+
+            message = response.Message;
+            loadFailed = false;
+            if (response.Report is { } result)
+            {
+                report = result;
+                from = result.From;
+                to = result.To;
+                zone = FindZone(result.TimeZoneId);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            loadFailed = true;
+        }
+    }
+
+    // The API decided the days in its own time zone, so the times are shown in that zone too.
+    private static TimeZoneInfo FindZone(string id)
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(id);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.Local;
+        }
+    }
+
+    private DateTime InZone(DateTimeOffset utc) => TimeZoneInfo.ConvertTime(utc, zone).DateTime;
+}
